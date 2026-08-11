@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Bassin de refroidissement — KYS Marine</title>
+<style>
+  :root{
+    --deep:#0F2C38;
+    --water:#1B4E5E;
+    --water-light:#2A6478;
+    --foam:#F1ECDD;
+    --shell:#B9C7BE;
+    --tide:#C79A4B;
+    --tide-dim:#9c7c3d;
+    --coral:#D2694A;
+    --line: rgba(241,236,221,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(1200px 700px at 15% -10%, #163e4b 0%, var(--deep) 55%), var(--deep);
+    color:var(--foam);
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding: 34px 6vw 18px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:16px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--tide);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-weight:600;
+    font-size:clamp(26px,4vw,40px);
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .stat{
+    text-align:right;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  }
+  .stat .num{
+    font-size:28px;
+    font-weight:600;
+    color:var(--foam);
+  }
+  .stat .num span{color:var(--tide); font-size:16px;}
+  .stat .label{
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--shell);
+    margin-top:2px;
+  }
+
+  /* ---------- Basin wrapper with wavy edges ---------- */
+  .basin-wrap{
+    position:relative;
+    max-width:1140px;
+    margin: 46px auto 60px;
+    padding: 0 6vw;
+  }
+  .wave{
+    height:26px;
+    width:100%;
+    background: linear-gradient(var(--water-light), var(--water-light));
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q 12.5 0 25 10 T 50 10 T 75 10 T 100 10 T 125 10 T 150 10 T 175 10 T 200 10 V20 H0 Z'/%3E%3C/svg%3E") center/100% 100%;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M0 10 Q 12.5 0 25 10 T 50 10 T 75 10 T 100 10 T 125 10 T 150 10 T 175 10 T 200 10 V20 H0 Z'/%3E%3C/svg%3E") center/100% 100%;
+    opacity:.8;
+  }
+  .wave.bottom{ transform: scaleY(-1); }
+
+  .basin{
+    background:
+      repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 34px),
+      linear-gradient(160deg, var(--water) 0%, #163f4d 100%);
+    border-left:1px solid rgba(241,236,221,0.18);
+    border-right:1px solid rgba(241,236,221,0.18);
+    padding: 26px;
+  }
+
+  /* ---------- Grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(100px, 1fr));
+    gap: 9px;
+  }
+  @media (max-width: 720px){
+    .grid{ grid-template-columns: repeat(4, minmax(84px, 1fr)); gap:7px; }
+    .basin{ overflow-x:auto; }
+    .grid{ min-width: 420px; }
+  }
+
+  .cell{
+    position:relative;
+    min-height: 138px;
+    border-radius: 3px;
+    background: rgba(241,236,221,0.035);
+    border:1px solid rgba(241,236,221,0.16);
+    padding: 9px 10px 10px;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+    user-select:none;
+    touch-action: auto;
+  }
+  .cell:hover{ background: rgba(241,236,221,0.06); }
+  .cell.empty{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor: pointer;
+    border-style:dashed;
+    border-color: rgba(241,236,221,0.22);
+  }
+  .cell.empty:hover{ border-color: var(--tide); }
+  .cell.empty .plus{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-size:26px;
+    color: rgba(241,236,221,0.35);
+    transition:color .15s ease;
+  }
+  .cell.empty:hover .plus{ color: var(--tide); }
+
+  .cell.dragging{
+    opacity:.35;
+  }
+  .cell.drop-target{
+    border-color: var(--tide);
+    background: rgba(199,154,75,0.12);
+    box-shadow: inset 0 0 0 1px var(--tide);
+  }
+  .cell.just-dropped{
+    animation: ripple .5s ease;
+  }
+  @keyframes ripple{
+    0%{ box-shadow: 0 0 0 0 rgba(199,154,75,0.5); }
+    100%{ box-shadow: 0 0 0 14px rgba(199,154,75,0); }
+  }
+
+  .cage-id{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:22px;
+    height:19px;
+    padding:0 5px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.02em;
+    color: var(--deep);
+    background: var(--tide);
+    border-radius: 2px;
+    margin-bottom:6px;
+  }
+  .refs{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    margin-bottom:8px;
+  }
+  .ref-line{
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11.5px;
+    color: var(--foam);
+    display:flex;
+    gap:5px;
+  }
+  .ref-line .ref-name{ color: var(--shell); }
+  .cage-date{
+    position:absolute;
+    bottom:8px;
+    left:10px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:14px;
+    font-weight:600;
+    color: var(--tide-dim);
+    letter-spacing:.03em;
+  }
+  .cage-date.recent{ color:#E8604A; }
+  .cage-date.aged{ color:#5FBF7A; }
+  .drag-handle{
+    position:absolute;
+    top:2px;
+    right:2px;
+    width:26px;
+    height:26px;
+    display:grid;
+    grid-template-columns:repeat(2,3px);
+    grid-template-rows:repeat(3,3px);
+    gap:2px;
+    place-content:center;
+    cursor: grab;
+    touch-action: none;
+    border-radius: 3px;
+  }
+  .drag-handle:active{ background: rgba(199,154,75,0.18); }
+  .drag-handle i{ width:3px; height:3px; background:var(--foam); opacity:.35; border-radius:50%; display:block;}
+
+  /* ---------- Ghost element while dragging ---------- */
+  #ghost{
+    position:fixed;
+    pointer-events:none;
+    z-index:60;
+    width:180px;
+    padding:12px 14px;
+    border-radius:3px;
+    background: rgba(27,78,94,0.95);
+    border:1px solid var(--tide);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    display:none;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:12px;
+  }
+
+  /* ---------- Overlay / panel ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background: rgba(9,22,27,0.72);
+    backdrop-filter: blur(2px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding: 20px;
+  }
+  .overlay.open{ display:flex; }
+  .panel{
+    width:100%;
+    max-width: 420px;
+    background: var(--deep);
+    border:1px solid rgba(241,236,221,0.18);
+    border-top: 3px solid var(--tide);
+    padding: 26px 24px 22px;
+    max-height: 88vh;
+    overflow-y:auto;
+  }
+  .panel h2{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0 0 18px;
+  }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:10.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color: var(--shell);
+    margin-bottom:6px;
+  }
+  .field input[type=text], .field input[type=date]{
+    width:100%;
+    background: rgba(241,236,221,0.05);
+    border:1px solid rgba(241,236,221,0.22);
+    color: var(--foam);
+    padding: 9px 10px;
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:14px;
+    border-radius:2px;
+  }
+  .field input:focus{ outline:none; border-color: var(--tide); }
+
+  .ref-row{
+    border:1px solid rgba(241,236,221,0.16);
+    border-radius:3px;
+    padding:8px;
+    margin-bottom:8px;
+  }
+  .ref-row-top{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .ref-row-top .ref-name-input{ flex:1; }
+  .ref-row input{
+    background: rgba(241,236,221,0.05);
+    border:1px solid rgba(241,236,221,0.22);
+    color: var(--foam);
+    padding: 8px 8px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:13px;
+    border-radius:2px;
+    width:100%;
+  }
+  .ref-row input:focus{ outline:none; border-color: var(--tide); }
+  .unit-toggle{
+    display:flex;
+    border:1px solid rgba(241,236,221,0.22);
+    border-radius:2px;
+    overflow:hidden;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    flex-shrink:0;
+  }
+  .unit-toggle button{
+    background:transparent;
+    border:none;
+    color: var(--shell);
+    padding:8px 9px;
+    cursor:pointer;
+  }
+  .unit-toggle button.active{
+    background: var(--tide);
+    color: var(--deep);
+    font-weight:600;
+  }
+  .rm-ref{
+    background:none;
+    border:none;
+    color: var(--coral);
+    font-size:18px;
+    cursor:pointer;
+    line-height:1;
+    flex-shrink:0;
+  }
+  .ref-row-bottom{
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+  .p-fields{ display:flex; flex:1; }
+  .kg-fields{ display:flex; gap:6px; align-items:center; flex:1; }
+  .kg-fields input{ flex:1; min-width:0; }
+  .kg-fields .mult-sign{ color:var(--shell); font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-size:13px; flex-shrink:0; }
+  .calc-result{
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:12px;
+    font-weight:600;
+    color: var(--tide);
+    white-space:nowrap;
+    flex-shrink:0;
+    min-width:56px;
+    text-align:right;
+  }
+  .add-ref{
+    background:none;
+    border:1px dashed rgba(241,236,221,0.3);
+    color: var(--shell);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:12px;
+    padding:8px;
+    width:100%;
+    border-radius:2px;
+    cursor:pointer;
+    margin-top:2px;
+    margin-bottom: 20px;
+  }
+  .add-ref:hover{ border-color: var(--tide); color: var(--tide); }
+
+  .header-settings{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .settings-link{
+    background:none;
+    border:1px solid rgba(241,236,221,0.22);
+    color: var(--shell);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    letter-spacing:.05em;
+    padding:7px 10px;
+    border-radius:2px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .settings-link:hover{ border-color: var(--tide); color: var(--tide); }
+  .panel.small{ max-width:340px; }
+  .hint{
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:12px;
+    color: var(--shell);
+    margin: -10px 0 18px;
+    line-height:1.4;
+  }
+
+  .panel-actions{
+    display:flex;
+    gap:10px;
+    margin-top: 4px;
+  }
+  .btn{
+    flex:1;
+    padding: 11px 14px;
+    border-radius:2px;
+    border:none;
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    letter-spacing:.01em;
+  }
+  .btn-save{ background: var(--tide); color: var(--deep); }
+  .btn-save:hover{ background:#d6a656; }
+  .btn-cancel{ background: transparent; color: var(--shell); border:1px solid rgba(241,236,221,0.22); }
+  .btn-cancel:hover{ color: var(--foam); }
+  .btn-delete{
+    background:transparent;
+    color: var(--coral);
+    border:1px solid rgba(210,105,74,0.4);
+  }
+  .btn-delete:hover{ background: rgba(210,105,74,0.1); }
+
+  footer{
+    text-align:center;
+    padding: 10px 0 40px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    color: rgba(241,236,221,0.3);
+    letter-spacing:.08em;
+  }
+
+  /* ---------- Summary recap table ---------- */
+  .summary-wrap{
+    max-width:1140px;
+    margin: 0 auto 50px;
+    padding: 0 6vw;
+  }
+  .summary-title{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-weight:600;
+    font-size:22px;
+    margin: 0 0 6px;
+  }
+  .summary-subtitle{
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color: var(--shell);
+    margin: 0 0 18px;
+  }
+  .summary-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 720px){
+    .summary-grid{ grid-template-columns: 1fr; }
+  }
+  .summary-block{
+    border:1px solid rgba(241,236,221,0.16);
+    border-radius:3px;
+    overflow:hidden;
+    background: rgba(241,236,221,0.02);
+  }
+  .summary-block h3{
+    margin:0;
+    padding:11px 14px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .summary-block h3 .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .summary-block.recent h3{ background: rgba(232,96,74,0.1); color:#E8604A; border-bottom:1px solid rgba(232,96,74,0.28); }
+  .summary-block.recent h3 .dot{ background:#E8604A; }
+  .summary-block.aged h3{ background: rgba(95,191,122,0.1); color:#5FBF7A; border-bottom:1px solid rgba(95,191,122,0.28); }
+  .summary-block.aged h3 .dot{ background:#5FBF7A; }
+  .summary-table{ width:100%; border-collapse:collapse; }
+  .summary-table td{
+    padding:9px 14px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:13px;
+    border-bottom:1px solid rgba(241,236,221,0.08);
+  }
+  .summary-table tr:last-child td{ border-bottom:none; }
+  .summary-table td.ref-cell{ color: var(--shell); }
+  .summary-table td.qty-cell{ text-align:right; font-weight:600; }
+  .summary-block.recent .qty-cell{ color:#E8604A; }
+  .summary-block.aged .qty-cell{ color:#5FBF7A; }
+  .summary-empty{
+    padding:16px 14px;
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:12.5px;
+    color: rgba(241,236,221,0.35);
+    font-style:italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <p class="eyebrow">KYS Marine · Bassins</p>
+    <h1>Plan des cages</h1>
+  </div>
+  <div class="header-settings">
+    <button class="settings-link" id="settingsBtn" type="button">⚙ Poids/bac par défaut</button>
+    <div class="stat">
+      <div class="num" id="statNum">0<span>/16</span></div>
+      <div class="label">emplacements occupés</div>
+    </div>
+  </div>
+</header>
+
+<div class="basin-wrap">
+  <div class="wave"></div>
+  <div class="basin">
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="wave bottom"></div>
+</div>
+
+<div class="summary-wrap">
+  <h2 class="summary-title">Récapitulatif du bassin</h2>
+  <p class="summary-subtitle">Toutes cages confondues, référence par référence</p>
+  <div class="summary-grid">
+    <div class="summary-block recent">
+      <h3><span class="dot"></span>Déposées il y a -48h</h3>
+      <div id="summaryRecent"></div>
+    </div>
+    <div class="summary-block aged">
+      <h3><span class="dot"></span>Déposées il y a +48h</h3>
+      <div id="summaryAged"></div>
+    </div>
+  </div>
+</div>
+
+<footer>GLISSER LA POIGNÉE (⠿) EN HAUT À DROITE D'UNE CASE POUR PERMUTER · TAPOTER POUR ÉDITER</footer>
+
+<div id="ghost"></div>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h2 id="panelTitle">Nouvelle cage</h2>
+    <div class="field">
+      <label>Identifiant de la cage</label>
+      <input type="text" id="cageId" placeholder="ex : O, N, W, 3…" maxlength="6">
+    </div>
+    <div class="field" style="margin-bottom:8px;">
+      <label>Références</label>
+      <div id="refRows"></div>
+      <button class="add-ref" id="addRefBtn" type="button">+ Ajouter une référence</button>
+    </div>
+    <div class="field">
+      <label>Date de dépose</label>
+      <input type="date" id="cageDate">
+    </div>
+    <div class="panel-actions">
+      <button class="btn btn-cancel" id="cancelBtn" type="button">Annuler</button>
+      <button class="btn btn-save" id="saveBtn" type="button">Enregistrer</button>
+    </div>
+    <div class="panel-actions" id="deleteRow" style="display:none;">
+      <button class="btn btn-delete" id="deleteBtn" type="button">Vider cet emplacement</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="panel small">
+    <h2>Réglages</h2>
+    <div class="field">
+      <label>Poids par bac par défaut (Kg)</label>
+      <input type="text" id="defaultPoidsBac" placeholder="ex : 18" inputmode="decimal">
+    </div>
+    <p class="hint">Cette valeur préremplit automatiquement le champ « poids/bac » de chaque nouvelle référence en Kg. Tu peux toujours la modifier ligne par ligne.</p>
+    <div class="panel-actions">
+      <button class="btn btn-cancel" id="settingsCancelBtn" type="button">Fermer</button>
+      <button class="btn btn-save" id="settingsSaveBtn" type="button">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'kysBasinCages_v1';
+const DEFAULT_POIDS_KEY = 'kysDefaultPoidsBac_v1';
+const N = 16;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length === N) return parsed;
+    }
+  }catch(e){}
+  return new Array(N).fill(null);
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadDefaultPoidsBac(){
+  return localStorage.getItem(DEFAULT_POIDS_KEY) || '';
+}
+function saveDefaultPoidsBac(val){
+  localStorage.setItem(DEFAULT_POIDS_KEY, val);
+}
+
+let state = loadState();
+let editingIndex = null;
+let refIdCounter = 0;
+
+const gridEl = document.getElementById('grid');
+const overlay = document.getElementById('overlay');
+const ghost = document.getElementById('ghost');
+
+function fmtDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}.${m}`;
+}
+
+function dateAgeClass(iso){
+  if(!iso) return '';
+  const dropped = new Date(iso + 'T00:00:00');
+  const now = new Date();
+  const hoursSince = (now - dropped) / 36e5;
+  if(hoursSince <= 48) return 'recent';
+  return 'aged';
+}
+
+function render(){
+  gridEl.innerHTML = '';
+  let occupied = 0;
+  state.forEach((cage, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (cage ? '' : ' empty');
+    cell.dataset.index = i;
+
+    if(cage){
+      occupied++;
+      cell.innerHTML = `
+        <div class="drag-handle"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="cage-id">${escapeHtml(cage.id)}</div>
+        <div class="refs">
+          ${cage.refs.map(r => {
+            let display;
+            if(r.unit === 'kg'){
+              const total = (parseFloat(String(r.bacs).replace(',','.')) || 0) * (parseFloat(String(r.poidsBac).replace(',','.')) || 0);
+              display = (Number.isInteger(total) ? total : total.toFixed(1)) + ' Kg';
+            } else {
+              display = escapeHtml(r.qty || '0') + ' p';
+            }
+            return `<div class="ref-line"><span class="ref-name">${escapeHtml(r.name)}</span><span>${display}</span></div>`;
+          }).join('')}
+        </div>
+        ${cage.date ? `<div class="cage-date ${dateAgeClass(cage.date)}">${fmtDate(cage.date)}</div>` : ''}
+      `;
+    } else {
+      cell.innerHTML = `<span class="plus">+</span>`;
+    }
+    gridEl.appendChild(cell);
+  });
+  document.getElementById('statNum').innerHTML = `${occupied}<span>/16</span>`;
+  attachPointerHandlers();
+  renderSummary();
+}
+
+function refTotal(r){
+  if(r.unit === 'kg'){
+    const bacs = parseFloat(String(r.bacs).replace(',', '.')) || 0;
+    const poidsBac = parseFloat(String(r.poidsBac).replace(',', '.')) || 0;
+    return bacs * poidsBac;
+  }
+  return parseFloat(String(r.qty).replace(',', '.')) || 0;
+}
+
+function fmtQty(n, unit){
+  const val = Number.isInteger(n) ? n : n.toFixed(1);
+  return unit === 'kg' ? `${val} Kg` : `${val} p`;
+}
+
+function renderSummary(){
+  const recent = {}; // key "name||unit" -> total
+  const aged = {};
+
+  state.forEach(cage => {
+    if(!cage || !cage.date) return;
+    const bucket = dateAgeClass(cage.date) === 'recent' ? recent : aged;
+    cage.refs.forEach(r => {
+      if(!r.name) return;
+      const key = r.name + '||' + r.unit;
+      bucket[key] = (bucket[key] || 0) + refTotal(r);
+    });
+  });
+
+  const fillBlock = (elId, data) => {
+    const el = document.getElementById(elId);
+    const keys = Object.keys(data).sort((a, b) => a.localeCompare(b));
+    if(keys.length === 0){
+      el.innerHTML = `<div class="summary-empty">Aucune cage dans cette catégorie</div>`;
+      return;
+    }
+    el.innerHTML = `<table class="summary-table"><tbody>
+      ${keys.map(k => {
+        const [name, unit] = k.split('||');
+        return `<tr><td class="ref-cell">${escapeHtml(name)}</td><td class="qty-cell">${fmtQty(data[k], unit)}</td></tr>`;
+      }).join('')}
+    </tbody></table>`;
+  };
+
+  fillBlock('summaryRecent', recent);
+  fillBlock('summaryAged', aged);
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+/* ---------------- Drag / click handling (pointer events, works mouse + touch) ---------------- */
+let dragState = null; // {startX, startY, index, moved, el}
+let suppressNextClick = false;
+
+function attachPointerHandlers(){
+  document.querySelectorAll('.cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      if(suppressNextClick){ suppressNextClick = false; return; }
+      openPanel(parseInt(cell.dataset.index, 10));
+    });
+  });
+  document.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', onPointerDown);
+  });
+}
+
+function onPointerDown(e){
+  e.stopPropagation();
+  const cell = e.currentTarget.closest('.cell');
+  const index = parseInt(cell.dataset.index, 10);
+  dragState = { startX: e.clientX, startY: e.clientY, index, moved:false, el: cell };
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp, { once:true });
+}
+
+function onPointerMove(e){
+  if(!dragState) return;
+  const dx = e.clientX - dragState.startX;
+  const dy = e.clientY - dragState.startY;
+  if(!dragState.moved && Math.hypot(dx,dy) > 9){
+    dragState.moved = true;
+    dragState.el.classList.add('dragging');
+    const cage = state[dragState.index];
+    ghost.style.display = 'block';
+    ghost.innerHTML = cage ? `<strong style="color:var(--tide)">${escapeHtml(cage.id)}</strong> — déplacement…` : 'Case vide';
+    document.querySelectorAll('.cell').forEach(c => { if(c !== dragState.el) c.style.cursor='default'; });
+  }
+  if(dragState.moved){
+    ghost.style.left = (e.clientX + 14) + 'px';
+    ghost.style.top = (e.clientY + 14) + 'px';
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const targetCell = under ? under.closest('.cell') : null;
+    document.querySelectorAll('.cell.drop-target').forEach(c => c.classList.remove('drop-target'));
+    if(targetCell && targetCell !== dragState.el){
+      targetCell.classList.add('drop-target');
+    }
+  }
+}
+
+function onPointerUp(e){
+  window.removeEventListener('pointermove', onPointerMove);
+  if(!dragState) return;
+  const wasMoved = dragState.moved;
+  const fromIndex = dragState.index;
+  const fromEl = dragState.el;
+
+  if(wasMoved){
+    suppressNextClick = true;
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const targetCell = under ? under.closest('.cell') : null;
+    fromEl.classList.remove('dragging');
+    document.querySelectorAll('.cell.drop-target').forEach(c => c.classList.remove('drop-target'));
+    ghost.style.display = 'none';
+    document.querySelectorAll('.cell').forEach(c => c.style.cursor='');
+
+    if(targetCell){
+      const toIndex = parseInt(targetCell.dataset.index, 10);
+      if(toIndex !== fromIndex){
+        const tmp = state[fromIndex];
+        state[fromIndex] = state[toIndex];
+        state[toIndex] = tmp;
+        saveState();
+        render();
+        requestAnimationFrame(() => {
+          const cells = document.querySelectorAll('.cell');
+          cells[fromIndex] && cells[fromIndex].classList.add('just-dropped');
+          cells[toIndex] && cells[toIndex].classList.add('just-dropped');
+        });
+      }
+    }
+  } else {
+    // simple tap on the grip with no movement — let the click event (bubbling to the cell) open the panel
+  }
+  dragState = null;
+}
+
+/* ---------------- Edit panel ---------------- */
+const refRows = document.getElementById('refRows');
+const cageIdInput = document.getElementById('cageId');
+const cageDateInput = document.getElementById('cageDate');
+const panelTitle = document.getElementById('panelTitle');
+const deleteRow = document.getElementById('deleteRow');
+
+function makeRefRow(name='', unit='kg', qty='', bacs='', poidsBac=''){
+  const rowId = 'r' + (refIdCounter++);
+  const row = document.createElement('div');
+  row.className = 'ref-row';
+  row.dataset.rowId = rowId;
+  row.dataset.unit = unit;
+
+  const prefillPoids = poidsBac || (unit === 'kg' ? loadDefaultPoidsBac() : '');
+
+  row.innerHTML = `
+    <div class="ref-row-top">
+      <input type="text" placeholder="Référence (ex: K2)" class="ref-name-input" value="${escapeHtml(name)}">
+      <div class="unit-toggle">
+        <button type="button" data-unit="kg" class="${unit==='kg'?'active':''}">Kg</button>
+        <button type="button" data-unit="p" class="${unit==='p'?'active':''}">p</button>
+      </div>
+      <button type="button" class="rm-ref" title="Supprimer">×</button>
+    </div>
+    <div class="ref-row-bottom">
+      <div class="kg-fields" style="display:${unit==='kg'?'flex':'none'}">
+        <input type="text" placeholder="Nbre de bacs" class="ref-bacs-input" value="${escapeHtml(bacs)}" inputmode="numeric">
+        <span class="mult-sign">×</span>
+        <input type="text" placeholder="Poids/bac (Kg)" class="ref-poids-input" value="${escapeHtml(prefillPoids)}" inputmode="decimal">
+        <span class="calc-result">0 Kg</span>
+      </div>
+      <div class="p-fields" style="display:${unit==='p'?'flex':'none'}">
+        <input type="text" placeholder="Nombre de pièces" class="ref-qty-input" value="${escapeHtml(qty)}" inputmode="numeric">
+      </div>
+    </div>
+  `;
+
+  const nameInput = row.querySelector('.ref-name-input');
+  nameInput.addEventListener('input', () => {
+    const v = nameInput.value;
+    if(v.length && v[0] !== v[0].toUpperCase()){
+      const pos = nameInput.selectionStart;
+      nameInput.value = v.charAt(0).toUpperCase() + v.slice(1);
+      nameInput.setSelectionRange(pos, pos);
+    }
+  });
+
+  const kgFields = row.querySelector('.kg-fields');
+  const pFields = row.querySelector('.p-fields');
+  const bacsInput = row.querySelector('.ref-bacs-input');
+  const poidsInput = row.querySelector('.ref-poids-input');
+  const resultSpan = row.querySelector('.calc-result');
+
+  function updateResult(){
+    const b = parseFloat(bacsInput.value.replace(',', '.')) || 0;
+    const p = parseFloat(poidsInput.value.replace(',', '.')) || 0;
+    const total = b * p;
+    resultSpan.textContent = (Number.isInteger(total) ? total : total.toFixed(1)) + ' Kg';
+  }
+  bacsInput.addEventListener('input', updateResult);
+  poidsInput.addEventListener('input', updateResult);
+  updateResult();
+
+  row.querySelectorAll('.unit-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      row.querySelectorAll('.unit-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const newUnit = btn.dataset.unit;
+      row.dataset.unit = newUnit;
+      if(newUnit === 'kg'){
+        kgFields.style.display = 'flex';
+        pFields.style.display = 'none';
+        if(!poidsInput.value) poidsInput.value = loadDefaultPoidsBac();
+        updateResult();
+      } else {
+        kgFields.style.display = 'none';
+        pFields.style.display = 'flex';
+      }
+    });
+  });
+  row.querySelector('.rm-ref').addEventListener('click', () => row.remove());
+  return row;
+}
+
+document.getElementById('addRefBtn').addEventListener('click', () => {
+  refRows.appendChild(makeRefRow('', 'kg'));
+});
+
+function openPanel(index){
+  editingIndex = index;
+  const cage = state[index];
+  refRows.innerHTML = '';
+
+  if(cage){
+    panelTitle.textContent = `Cage ${cage.id}`;
+    cageIdInput.value = cage.id;
+    cageDateInput.value = cage.date || '';
+    cage.refs.forEach(r => refRows.appendChild(makeRefRow(r.name, r.unit, r.qty || '', r.bacs || '', r.poidsBac || '')));
+    deleteRow.style.display = 'flex';
+  } else {
+    panelTitle.textContent = 'Nouvelle cage';
+    cageIdInput.value = '';
+    cageDateInput.value = '';
+    refRows.appendChild(makeRefRow('', 'kg'));
+    deleteRow.style.display = 'none';
+  }
+  overlay.classList.add('open');
+  setTimeout(() => cageIdInput.focus(), 50);
+}
+
+function closePanel(){
+  overlay.classList.remove('open');
+  editingIndex = null;
+}
+
+document.getElementById('cancelBtn').addEventListener('click', closePanel);
+overlay.addEventListener('click', (e) => { if(e.target === overlay) closePanel(); });
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const id = cageIdInput.value.trim();
+  if(!id){
+    cageIdInput.focus();
+    cageIdInput.style.borderColor = 'var(--coral)';
+    return;
+  }
+  const refs = [];
+  refRows.querySelectorAll('.ref-row').forEach(row => {
+    const name = row.querySelector('.ref-name-input').value.trim();
+    const unit = row.querySelector('.unit-toggle button.active').dataset.unit;
+    if(unit === 'kg'){
+      const bacs = row.querySelector('.ref-bacs-input').value.trim();
+      const poidsBac = row.querySelector('.ref-poids-input').value.trim();
+      if(name || bacs || poidsBac) refs.push({ name, unit, bacs, poidsBac });
+    } else {
+      const qty = row.querySelector('.ref-qty-input').value.trim();
+      if(name || qty) refs.push({ name, unit, qty });
+    }
+  });
+  state[editingIndex] = { id, refs, date: cageDateInput.value };
+  saveState();
+  closePanel();
+  render();
+});
+
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  state[editingIndex] = null;
+  saveState();
+  closePanel();
+  render();
+});
+
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && overlay.classList.contains('open')) closePanel();
+});
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('defaultPoidsBac').value = loadDefaultPoidsBac();
+  document.getElementById('settingsOverlay').classList.add('open');
+});
+document.getElementById('settingsCancelBtn').addEventListener('click', () => {
+  document.getElementById('settingsOverlay').classList.remove('open');
+});
+document.getElementById('settingsOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'settingsOverlay') document.getElementById('settingsOverlay').classList.remove('open');
+});
+document.getElementById('settingsSaveBtn').addEventListener('click', () => {
+  saveDefaultPoidsBac(document.getElementById('defaultPoidsBac').value.trim());
+  document.getElementById('settingsOverlay').classList.remove('open');
+});
+
+render();
+</script>
+</body>
+</html>
