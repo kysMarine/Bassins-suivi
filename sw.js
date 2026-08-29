@@ -1,7 +1,10 @@
-const CACHE_NAME = 'bassins-kys-v2';
+const CACHE_NAME = 'bassins-kys-v3';
 const ASSETS = [
   './',
-  './index.html'
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
 self.addEventListener('install', (e) => {
