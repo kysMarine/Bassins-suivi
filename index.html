@@ -99,20 +99,286 @@
     padding: 26px;
   }
 
-  /* ---------- Grid ---------- */
-  .grid{
-    display:grid;
-    grid-template-columns: repeat(4, minmax(100px, 1fr));
-    gap: 9px;
+  /* ---------- Tabs ---------- */
+  .tabs{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    padding: 22px 6vw 0;
+    max-width:1140px;
+    margin:0 auto;
+  }
+  .tab-btn{
+    background:transparent;
+    border:1px solid rgba(241,236,221,0.18);
+    color: var(--shell);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    padding:10px 16px;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .tab-btn.active{
+    border-color: var(--tide);
+    color: var(--tide);
+    background: rgba(199,154,75,0.08);
+  }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .subtabs{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding: 18px 6vw 0;
+    max-width:1140px;
+    margin:0 auto;
+  }
+  .subtab-btn{
+    background:transparent;
+    border:1px solid rgba(241,236,221,0.14);
+    color: var(--shell);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:7px 14px;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .subtab-btn.active{
+    border-color: var(--tide);
+    color: var(--tide);
+    background: rgba(199,154,75,0.06);
+  }
+  .subtab-panel{ display:none; }
+  .subtab-panel.active{ display:block; }
+
+  .rect-nav{
+    display:flex;
+    align-items:stretch;
+    gap:8px;
+  }
+  .rect-nav .basin-rect{ flex:1; min-width:0; }
+  .rect-arrow{
+    flex-shrink:0;
+    width:42px;
+    border:1px solid rgba(241,236,221,0.18);
+    background: rgba(241,236,221,0.03);
+    color: var(--tide);
+    font-size:24px;
+    line-height:1;
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .rect-arrow:hover{ border-color: var(--tide); background: rgba(199,154,75,0.08); }
+  .rect-arrow:disabled{
+    opacity:.25;
+    cursor:not-allowed;
+    color: var(--shell);
+  }
+  .rect-arrow:disabled:hover{ border-color: rgba(241,236,221,0.18); background: rgba(241,236,221,0.03); }
+  .rect-page-label{
+    text-align:center;
+    margin-top:12px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color: var(--shell);
+  }
+
+  /* ---------- Rectangular freeform basin ---------- */
+  .basin-rect{
+    position:relative;
+    width:100%;
+    aspect-ratio: 1.7 / 1;
+    min-height: 460px;
+    background:
+      repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 34px),
+      linear-gradient(160deg, var(--water) 0%, #163f4d 100%);
+    border-left:1px solid rgba(241,236,221,0.18);
+    border-right:1px solid rgba(241,236,221,0.18);
+    cursor: copy;
+    overflow:hidden;
   }
   @media (max-width: 720px){
-    .grid{ grid-template-columns: repeat(4, minmax(84px, 1fr)); gap:7px; }
+    .basin-rect{ aspect-ratio: 1.1 / 1; min-height: 520px; }
+  }
+  .rect-hint{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding: 20px;
+    pointer-events:none;
+    color: rgba(241,236,221,0.32);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:12.5px;
+    letter-spacing:.04em;
+  }
+  .rect-cage{
+    position:absolute;
+    width:112px;
+    transform: translate(-50%, -50%);
+    border-radius: 3px;
+    background: rgba(241,236,221,0.06);
+    border:1px solid rgba(241,236,221,0.22);
+    padding: 8px 9px 9px;
+    cursor:pointer;
+    user-select:none;
+    touch-action:auto;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .rect-cage .cage-date{ position:static; margin-top:5px; }
+  .rect-cage .cage-comment{
+    margin-top:5px;
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:10.5px;
+    line-height:1.35;
+    color: var(--shell);
+    font-style:italic;
+    word-break: break-word;
+  }
+  .rect-cage:hover{ background: rgba(241,236,221,0.1); }
+  .rect-cage.dragging-live{
+    z-index: 40;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+    border-color: var(--tide);
+  }
+  .grid{
+    display:flex;
+    flex-direction:column;
+    gap: 9px;
+  }
+  .grid-row{
+    display:flex;
+    gap: 9px;
+    align-items:stretch;
+  }
+  @media (max-width: 720px){
+    .grid-row{ gap:7px; }
     .basin{ overflow-x:auto; }
     .grid{ min-width: 420px; }
   }
 
+  .row-insert{
+    width:14px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    opacity:.32;
+    transition: opacity .15s ease, width .15s ease;
+    touch-action: manipulation;
+  }
+  .row-insert:hover{ opacity:1; width:22px; }
+  .row-insert-plus{
+    color: var(--tide);
+    font-size:14px;
+    font-weight:700;
+    pointer-events:none;
+  }
+
+  .row-remove-btn{
+    flex-shrink:0;
+    width:20px;
+    align-self:stretch;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:none;
+    border:none;
+    cursor:pointer;
+    color: var(--coral);
+    opacity:.35;
+    font-size:15px;
+    border-radius:3px;
+    touch-action: manipulation;
+  }
+  .row-remove-btn:hover{ opacity:1; background: rgba(210,105,74,0.12); }
+
+  .add-row-btn{
+    display:block;
+    width:100%;
+    margin-top:9px;
+    padding:10px;
+    background:none;
+    border:1px dashed rgba(241,236,221,0.25);
+    color: var(--shell);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .add-row-btn:hover{ border-color: var(--tide); color: var(--tide); background: rgba(199,154,75,0.06); }
+
+  .block-btn{
+    position:absolute;
+    top:2px;
+    left:2px;
+    width:22px;
+    height:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:none;
+    border:none;
+    color: var(--shell);
+    opacity:.4;
+    cursor:pointer;
+    font-size:12px;
+    border-radius:3px;
+    touch-action: manipulation;
+  }
+  .block-btn:hover{ opacity:1; background: rgba(210,105,74,0.12); color: var(--coral); }
+
+  .cell-remove-btn, .unblock-btn{
+    position:absolute;
+    top:2px;
+    right:2px;
+    width:22px;
+    height:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:none;
+    border:none;
+    color: var(--shell);
+    opacity:.4;
+    cursor:pointer;
+    font-size:14px;
+    border-radius:3px;
+    touch-action: manipulation;
+  }
+  .cell-remove-btn:hover, .unblock-btn:hover{ opacity:1; background: rgba(210,105,74,0.12); color: var(--coral); }
+
+  .cell.blocked{
+    cursor:not-allowed;
+    border-color: rgba(210,105,74,0.35);
+    background-image:
+      linear-gradient(to bottom right, transparent calc(50% - 1.5px), var(--coral) calc(50% - 1.5px), var(--coral) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+      linear-gradient(to bottom left, transparent calc(50% - 1.5px), var(--coral) calc(50% - 1.5px), var(--coral) calc(50% + 1.5px), transparent calc(50% + 1.5px));
+  }
+
+  .cell.spacer{
+    border:none;
+    background:none;
+    cursor:default;
+    pointer-events:none;
+  }
+
   .cell{
     position:relative;
+    flex:1 1 0;
+    min-width: 84px;
     min-height: 138px;
     border-radius: 3px;
     background: rgba(241,236,221,0.035);
@@ -161,11 +427,11 @@
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    min-width:22px;
-    height:19px;
-    padding:0 5px;
+    min-width:26px;
+    height:23px;
+    padding:0 7px;
     font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-    font-size:11px;
+    font-size:13.5px;
     font-weight:600;
     letter-spacing:.02em;
     color: var(--deep);
@@ -216,6 +482,28 @@
   }
   .drag-handle:active{ background: rgba(199,154,75,0.18); }
   .drag-handle i{ width:3px; height:3px; background:var(--foam); opacity:.35; border-radius:50%; display:block;}
+
+  .del-cross{
+    position:absolute;
+    top:2px;
+    right:28px;
+    left:auto;
+    width:22px;
+    height:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:none;
+    border:none;
+    color: var(--coral);
+    opacity:.5;
+    cursor:pointer;
+    font-size:15px;
+    line-height:1;
+    border-radius:3px;
+    touch-action: manipulation;
+  }
+  .del-cross:hover{ opacity:1; background: rgba(210,105,74,0.15); }
 
   /* ---------- Ghost element while dragging ---------- */
   #ghost{
@@ -398,6 +686,74 @@
     line-height:1.4;
   }
 
+  .comment-row textarea{
+    width:100%;
+    background: rgba(241,236,221,0.05);
+    border:1px solid rgba(241,236,221,0.22);
+    color: var(--foam);
+    padding: 9px 10px;
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:13.5px;
+    border-radius:2px;
+    resize:vertical;
+    min-height:52px;
+  }
+  .comment-row textarea:focus{ outline:none; border-color: var(--tide); }
+
+  .shape-options{
+    display:flex;
+    gap:16px;
+    margin-top:10px;
+  }
+  .check-opt{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:12px;
+    color: var(--shell);
+    cursor:pointer;
+    user-select:none;
+  }
+  .check-opt input[type=checkbox]{
+    width:16px;
+    height:16px;
+    accent-color: var(--tide);
+    cursor:pointer;
+  }
+  .check-opt:has(input:checked){ color: var(--tide); }
+
+  .cell.shape-anneau, .rect-cage.shape-anneau{
+    border-radius: 50%;
+  }
+  .rect-cage.shape-anneau{
+    width:86px;
+    height:86px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding: 6px 8px;
+    overflow:hidden;
+  }
+  .rect-cage.shape-anneau .cage-id{ font-size:11px; height:18px; min-width:20px; padding:0 5px; margin-bottom:3px; }
+  .rect-cage.shape-anneau .ref-line{ font-size:8.5px; gap:3px; }
+  .rect-cage.shape-anneau .cage-comment{ font-size:8px; margin-top:2px; }
+  .rect-cage.shape-anneau .cage-date{ font-size:10px; margin-top:3px; }
+  /* Corners of a circle are clipped by overflow:hidden — move controls to the safe top-center zone instead */
+  .rect-cage.shape-anneau .drag-handle,
+  .cell.shape-anneau .drag-handle{
+    top:6px; right:auto; left:50%;
+    transform: translateX(2px);
+  }
+  .rect-cage.shape-anneau .del-cross,
+  .cell.shape-anneau .del-cross{
+    top:6px; left:auto; right:50%;
+    transform: translateX(-2px);
+  }
+  .rect-cage.shape-grande{ width:180px; }
+
   .panel-actions{
     display:flex;
     gap:10px;
@@ -514,6 +870,7 @@
   </div>
   <div class="header-settings">
     <button class="settings-link" id="settingsBtn" type="button">⚙ Poids/bac par défaut</button>
+    <button class="settings-link" id="clearRectBtn" type="button" style="display:none;">🗑 Tout effacer</button>
     <div class="stat">
       <div class="num" id="statNum">0<span>/16</span></div>
       <div class="label">emplacements occupés</div>
@@ -521,12 +878,62 @@
   </div>
 </header>
 
-<div class="basin-wrap">
-  <div class="wave"></div>
-  <div class="basin">
-    <div class="grid" id="grid"></div>
+<div class="tabs">
+  <button class="tab-btn active" id="tabBtnFroid" type="button">Bassin Froid</button>
+  <button class="tab-btn" id="tabBtnRect" type="button">Bassin Plage</button>
+</div>
+
+<div class="tab-panel active" id="tabFroid">
+  <div class="subtabs">
+    <button class="subtab-btn active" id="subtabBtnB3" type="button">Bassin 3</button>
+    <button class="subtab-btn" id="subtabBtnB2" type="button">Bassin 2</button>
+    <button class="subtab-btn" id="subtabBtnB1" type="button">Bassin 1</button>
   </div>
-  <div class="wave bottom"></div>
+
+  <div class="subtab-panel active" id="subtabB3">
+    <div class="basin-wrap">
+      <div class="wave"></div>
+      <div class="basin">
+        <div class="grid" id="gridB3"></div>
+      </div>
+      <div class="wave bottom"></div>
+    </div>
+  </div>
+
+  <div class="subtab-panel" id="subtabB2">
+    <div class="basin-wrap">
+      <div class="wave"></div>
+      <div class="basin">
+        <div class="grid" id="gridB2"></div>
+      </div>
+      <div class="wave bottom"></div>
+    </div>
+  </div>
+
+  <div class="subtab-panel" id="subtabB1">
+    <div class="basin-wrap">
+      <div class="wave"></div>
+      <div class="basin">
+        <div class="grid" id="gridB1"></div>
+      </div>
+      <div class="wave bottom"></div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tabRect">
+  <div class="basin-wrap">
+    <div class="wave"></div>
+    <div class="rect-nav">
+      <button class="rect-arrow" id="rectPrev" type="button" aria-label="Vue précédente">‹</button>
+      <div class="basin-rect" id="basinRect">
+        <div class="rect-hint" id="rectHint">Touchez n'importe où dans le bassin pour placer une cage</div>
+      </div>
+      <button class="rect-arrow" id="rectNext" type="button" aria-label="Vue suivante">›</button>
+    </div>
+    <div class="wave bottom"></div>
+    <div class="rect-page-label" id="rectPageLabel">Vue 1 / 2</div>
+  </div>
 </div>
 
 <div class="summary-wrap">
@@ -544,7 +951,7 @@
   </div>
 </div>
 
-<footer>GLISSER LA POIGNÉE (⠿) EN HAUT À DROITE D'UNE CASE POUR PERMUTER · TAPOTER POUR ÉDITER</footer>
+<footer id="footerHint">GLISSER LA POIGNÉE (⠿) EN HAUT À DROITE D'UNE CASE POUR PERMUTER · TAPOTER POUR ÉDITER</footer>
 
 <div id="ghost"></div>
 
@@ -554,11 +961,21 @@
     <div class="field">
       <label>Identifiant de la cage</label>
       <input type="text" id="cageId" placeholder="ex : O, N, W, 3…" maxlength="6">
+      <div class="shape-options">
+        <label class="check-opt"><input type="checkbox" id="optAnneau"> Anneau</label>
+        <label class="check-opt"><input type="checkbox" id="optGrande"> Grande</label>
+      </div>
     </div>
     <div class="field" style="margin-bottom:8px;">
       <label>Références</label>
       <div id="refRows"></div>
       <button class="add-ref" id="addRefBtn" type="button">+ Ajouter une référence</button>
+    </div>
+    <div class="field" id="commentFieldWrap" style="display:none;">
+      <label>Commentaires</label>
+      <div class="comment-row">
+        <textarea id="cageComment" rows="2" placeholder="Note libre sur cette cage…"></textarea>
+      </div>
     </div>
     <div class="field">
       <label>Date de dépose</label>
@@ -590,22 +1007,79 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'kysBasinCages_v1';
+const RECT_STORAGE_KEY = 'kysBasinRect_v1';
 const DEFAULT_POIDS_KEY = 'kysDefaultPoidsBac_v1';
 const N = 16;
 
-function loadState(){
+const BASIN_CONFIGS = [
+  { id:'b3', key:'kysBasinCages_b3_v1', legacy:false },
+  { id:'b2', key:'kysBasinCages_b2_v1', legacy:false },
+  { id:'b1', key:'kysBasinCages_b1_v1', legacy:true } // inherits any pre-existing single-basin data
+];
+const LEGACY_STORAGE_KEY = 'kysBasinCages_v1';
+
+function emptyGrid(){
+  return [0,1,2,3].map(() => new Array(4).fill(null));
+}
+
+function loadGridState(key, isLegacyTarget){
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if(raw){
       const parsed = JSON.parse(raw);
-      if(Array.isArray(parsed) && parsed.length === N) return parsed;
+      if(Array.isArray(parsed) && parsed.length){
+        if(Array.isArray(parsed[0])) return parsed; // already row-based
+        if(parsed.length === N){ // legacy flat 16-slot array — migrate to 4 rows of 4
+          const rows = [];
+          for(let r=0; r<4; r++) rows.push(parsed.slice(r*4, r*4+4));
+          return rows;
+        }
+      }
     }
   }catch(e){}
-  return new Array(N).fill(null);
+  // nothing stored under this basin's own key yet — if this basin inherits legacy data, try the old shared key
+  if(isLegacyTarget){
+    try{
+      const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length){
+          if(Array.isArray(parsed[0])) return parsed;
+          if(parsed.length === N){
+            const rows = [];
+            for(let r=0; r<4; r++) rows.push(parsed.slice(r*4, r*4+4));
+            return rows;
+          }
+        }
+      }
+    }catch(e){}
+  }
+  return emptyGrid();
 }
-function saveState(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+const basins = {};
+BASIN_CONFIGS.forEach(cfg => {
+  basins[cfg.id] = {
+    state: loadGridState(cfg.key, cfg.legacy),
+    gridEl: document.getElementById('grid' + cfg.id.toUpperCase())
+  };
+});
+function saveGridState(basinId){
+  localStorage.setItem(BASIN_CONFIGS.find(c => c.id === basinId).key, JSON.stringify(basins[basinId].state));
+}
+
+function loadStateRect(){
+  try{
+    const raw = localStorage.getItem(RECT_STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)) return parsed;
+    }
+  }catch(e){}
+  return [];
+}
+function saveStateRect(){
+  localStorage.setItem(RECT_STORAGE_KEY, JSON.stringify(stateRect));
 }
 
 function loadDefaultPoidsBac(){
@@ -615,11 +1089,16 @@ function saveDefaultPoidsBac(val){
   localStorage.setItem(DEFAULT_POIDS_KEY, val);
 }
 
-let state = loadState();
-let editingIndex = null;
+let stateRect = loadStateRect();
+let editingTarget = null; // { type: 'grid', basinId, row, col } | { type: 'rect', index: number|null }
+let pendingRectPos = null; // { x, y } percentages, for a new rect cage being created
+let rectPage = 0;
+const RECT_PAGES = 2;
+const RECT_PAGE_NAMES = ['Prod', 'Emballage'];
 let refIdCounter = 0;
 
-const gridEl = document.getElementById('grid');
+const rectEl = document.getElementById('basinRect');
+const rectHintEl = document.getElementById('rectHint');
 const overlay = document.getElementById('overlay');
 const ghost = document.getElementById('ghost');
 
@@ -627,6 +1106,12 @@ function fmtDate(iso){
   if(!iso) return '';
   const [y,m,d] = iso.split('-');
   return `${d}.${m}`;
+}
+
+function todayISO(){
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 
 function dateAgeClass(iso){
@@ -638,42 +1123,156 @@ function dateAgeClass(iso){
   return 'aged';
 }
 
-function render(){
+function cageCardHTML(cage){
+  return `
+    <button type="button" class="del-cross" title="Supprimer">×</button>
+    <div class="drag-handle"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="cage-id">${escapeHtml(cage.id)}</div>
+    <div class="refs">
+      ${cage.refs.map(r => {
+        let display;
+        if(r.unit === 'kg'){
+          const total = (parseFloat(String(r.bacs).replace(',','.')) || 0) * (parseFloat(String(r.poidsBac).replace(',','.')) || 0);
+          display = (Number.isInteger(total) ? total : total.toFixed(1)) + ' Kg';
+        } else {
+          display = escapeHtml(r.qty || '0') + ' p';
+        }
+        return `<div class="ref-line"><span class="ref-name">${escapeHtml(r.name)}</span><span>${display}</span></div>`;
+      }).join('')}
+    </div>
+    ${cage.comment ? `<div class="cage-comment">${escapeHtml(cage.comment)}</div>` : ''}
+    ${cage.date ? `<div class="cage-date ${dateAgeClass(cage.date)}">${fmtDate(cage.date)}</div>` : ''}
+  `;
+}
+
+const BLOCKABLE_POSITIONS = [[0,0],[1,0]];
+function isBlockablePos(r, c){
+  return BLOCKABLE_POSITIONS.some(([br, bc]) => br === r && bc === c);
+}
+function isRowEmptyOrSpacer(row){
+  return row.every(c => c === null || (c && c.spacer));
+}
+
+function renderGrid(basinId){
+  const basin = basins[basinId];
+  const state = basin.state;
+  const gridEl = basin.gridEl;
   gridEl.innerHTML = '';
   let occupied = 0;
-  state.forEach((cage, i) => {
-    const cell = document.createElement('div');
-    cell.className = 'cell' + (cage ? '' : ' empty');
-    cell.dataset.index = i;
+  let totalSlots = 0;
 
-    if(cage){
-      occupied++;
-      cell.innerHTML = `
-        <div class="drag-handle"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="cage-id">${escapeHtml(cage.id)}</div>
-        <div class="refs">
-          ${cage.refs.map(r => {
-            let display;
-            if(r.unit === 'kg'){
-              const total = (parseFloat(String(r.bacs).replace(',','.')) || 0) * (parseFloat(String(r.poidsBac).replace(',','.')) || 0);
-              display = (Number.isInteger(total) ? total : total.toFixed(1)) + ' Kg';
-            } else {
-              display = escapeHtml(r.qty || '0') + ' p';
-            }
-            return `<div class="ref-line"><span class="ref-name">${escapeHtml(r.name)}</span><span>${display}</span></div>`;
-          }).join('')}
-        </div>
-        ${cage.date ? `<div class="cage-date ${dateAgeClass(cage.date)}">${fmtDate(cage.date)}</div>` : ''}
-      `;
-    } else {
-      cell.innerHTML = `<span class="plus">+</span>`;
+  state.forEach((row, rIdx) => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'grid-row';
+
+    if(isRowEmptyOrSpacer(row)){
+      const rmRowBtn = document.createElement('button');
+      rmRowBtn.type = 'button';
+      rmRowBtn.className = 'row-remove-btn';
+      rmRowBtn.title = 'Supprimer cette ligne (vide)';
+      rmRowBtn.textContent = '−';
+      rmRowBtn.dataset.row = rIdx;
+      rowEl.appendChild(rmRowBtn);
     }
-    gridEl.appendChild(cell);
+
+    row.forEach((cage, cIdx) => {
+      const cell = document.createElement('div');
+      cell.dataset.row = rIdx;
+      cell.dataset.col = cIdx;
+      cell.style.flexGrow = '';
+
+      if(cage && cage.spacer){
+        cell.className = 'cell spacer';
+      } else {
+        totalSlots++;
+        if(cage && cage.blocked){
+          cell.className = 'cell blocked';
+          cell.innerHTML = `<button type="button" class="unblock-btn" title="Réactiver cet emplacement">↺</button>`;
+        } else if(cage){
+          occupied++;
+          cell.className = 'cell';
+          cell.innerHTML = cageCardHTML(cage);
+          if(cage.shape === 'anneau') cell.classList.add('shape-anneau');
+          if(cage.shape === 'grande'){ cell.classList.add('shape-grande'); cell.style.flexGrow = '2'; }
+        } else {
+          cell.className = 'cell empty';
+          cell.innerHTML = `<span class="plus">+</span><button type="button" class="cell-remove-btn" title="Supprimer cet emplacement">−</button>`
+            + (isBlockablePos(rIdx, cIdx) ? `<button type="button" class="block-btn" title="Marquer indisponible">🚫</button>` : '');
+        }
+      }
+      rowEl.appendChild(cell);
+
+      if(cIdx < row.length - 1){
+        const insertZone = document.createElement('div');
+        insertZone.className = 'row-insert';
+        insertZone.dataset.row = rIdx;
+        insertZone.dataset.afterCol = cIdx;
+        insertZone.innerHTML = `<span class="row-insert-plus">+</span>`;
+        rowEl.appendChild(insertZone);
+      }
+    });
+
+    gridEl.appendChild(rowEl);
   });
-  document.getElementById('statNum').innerHTML = `${occupied}<span>/16</span>`;
-  attachPointerHandlers();
+
+  const addRowBtn = document.createElement('button');
+  addRowBtn.type = 'button';
+  addRowBtn.className = 'add-row-btn';
+  addRowBtn.textContent = '+ Ajouter une ligne';
+  addRowBtn.addEventListener('click', () => {
+    state.push(new Array(4).fill(null));
+    saveGridState(basinId);
+    renderGrid(basinId);
+  });
+  gridEl.appendChild(addRowBtn);
+
+  if(activeTab === basinId){
+    document.getElementById('statNum').innerHTML = `${occupied}<span>/${totalSlots}</span>`;
+    document.querySelector('.stat .label').textContent = 'emplacements occupés';
+  }
+  attachGridPointerHandlers(basinId);
   renderSummary();
 }
+
+function renderRect(){
+  rectEl.querySelectorAll('.rect-cage').forEach(el => el.remove());
+  const visibleCount = stateRect.filter(c => (c.page || 0) === rectPage).length;
+  rectHintEl.style.display = visibleCount === 0 ? 'flex' : 'none';
+
+  stateRect.forEach((cage, i) => {
+    if((cage.page || 0) !== rectPage) return;
+    const card = document.createElement('div');
+    card.className = 'rect-cage';
+    if(cage.shape === 'anneau') card.classList.add('shape-anneau');
+    if(cage.shape === 'grande') card.classList.add('shape-grande');
+    card.dataset.index = i;
+    card.style.left = cage.x + '%';
+    card.style.top = cage.y + '%';
+    card.innerHTML = cageCardHTML(cage);
+    rectEl.appendChild(card);
+  });
+
+  const pageName = RECT_PAGE_NAMES[rectPage] || `Vue ${rectPage + 1}`;
+  document.getElementById('rectPageLabel').textContent = `${pageName} — Vue ${rectPage + 1} / ${RECT_PAGES}`;
+  document.getElementById('rectPrev').disabled = rectPage === 0;
+  document.getElementById('rectNext').disabled = rectPage === RECT_PAGES - 1;
+
+  if(activeTab === 'rect'){
+    document.getElementById('statNum').innerHTML = `${stateRect.length}`;
+    document.querySelector('.stat .label').textContent = 'cages placées';
+  }
+  attachRectPointerHandlers();
+  renderSummary();
+}
+
+function switchRectPage(delta){
+  const next = rectPage + delta;
+  if(next < 0 || next >= RECT_PAGES) return;
+  rectPage = next;
+  renderRect();
+}
+document.getElementById('rectPrev').addEventListener('click', () => switchRectPage(-1));
+document.getElementById('rectNext').addEventListener('click', () => switchRectPage(1));
 
 function refTotal(r){
   if(r.unit === 'kg'){
@@ -693,15 +1292,19 @@ function renderSummary(){
   const recent = {}; // key "name||unit" -> total
   const aged = {};
 
-  state.forEach(cage => {
-    if(!cage || !cage.date) return;
-    const bucket = dateAgeClass(cage.date) === 'recent' ? recent : aged;
-    cage.refs.forEach(r => {
-      if(!r.name) return;
-      const key = r.name + '||' + r.unit;
-      bucket[key] = (bucket[key] || 0) + refTotal(r);
+  const addFrom = (arr) => {
+    arr.forEach(cage => {
+      if(!cage || cage.blocked || !cage.date) return;
+      const bucket = dateAgeClass(cage.date) === 'recent' ? recent : aged;
+      cage.refs.forEach(r => {
+        if(!r.name) return;
+        const key = r.name + '||' + r.unit;
+        bucket[key] = (bucket[key] || 0) + refTotal(r);
+      });
     });
-  });
+  };
+  BASIN_CONFIGS.forEach(cfg => addFrom(basins[cfg.id].state.flat()));
+  addFrom(stateRect);
 
   const fillBlock = (elId, data) => {
     const el = document.getElementById(elId);
@@ -727,26 +1330,91 @@ function escapeHtml(str){
 }
 
 /* ---------------- Drag / click handling (pointer events, works mouse + touch) ---------------- */
-let dragState = null; // {startX, startY, index, moved, el}
+let dragState = null; // {basinId, startX, startY, row, col, moved, el}
 let suppressNextClick = false;
 
-function attachPointerHandlers(){
-  document.querySelectorAll('.cell').forEach(cell => {
+function attachGridPointerHandlers(basinId){
+  const basin = basins[basinId];
+  const state = basin.state;
+  const gridEl = basin.gridEl;
+
+  gridEl.querySelectorAll('.cell').forEach(cell => {
     cell.addEventListener('click', () => {
       if(suppressNextClick){ suppressNextClick = false; return; }
-      openPanel(parseInt(cell.dataset.index, 10));
+      if(cell.classList.contains('blocked') || cell.classList.contains('spacer')) return;
+      openPanel({ type:'grid', basinId, row: parseInt(cell.dataset.row, 10), col: parseInt(cell.dataset.col, 10) });
     });
   });
-  document.querySelectorAll('.drag-handle').forEach(handle => {
-    handle.addEventListener('pointerdown', onPointerDown);
+  gridEl.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', (e) => onPointerDown(e, basinId));
+  });
+  gridEl.querySelectorAll('.del-cross').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cell = e.currentTarget.closest('.cell');
+      const r = parseInt(cell.dataset.row, 10), c = parseInt(cell.dataset.col, 10);
+      state[r][c] = null;
+      saveGridState(basinId);
+      renderGrid(basinId);
+    });
+  });
+  gridEl.querySelectorAll('.block-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cell = e.currentTarget.closest('.cell');
+      const r = parseInt(cell.dataset.row, 10), c = parseInt(cell.dataset.col, 10);
+      state[r][c] = { blocked: true };
+      saveGridState(basinId);
+      renderGrid(basinId);
+    });
+  });
+  gridEl.querySelectorAll('.unblock-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cell = e.currentTarget.closest('.cell');
+      const r = parseInt(cell.dataset.row, 10), c = parseInt(cell.dataset.col, 10);
+      state[r][c] = null;
+      saveGridState(basinId);
+      renderGrid(basinId);
+    });
+  });
+  gridEl.querySelectorAll('.row-insert').forEach(zone => {
+    zone.addEventListener('click', () => {
+      const r = parseInt(zone.dataset.row, 10);
+      const afterCol = parseInt(zone.dataset.afterCol, 10);
+      state[r].splice(afterCol + 1, 0, null);
+      saveGridState(basinId);
+      renderGrid(basinId);
+    });
+  });
+  gridEl.querySelectorAll('.cell-remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cell = e.currentTarget.closest('.cell');
+      const r = parseInt(cell.dataset.row, 10), c = parseInt(cell.dataset.col, 10);
+      if(state[r].length <= 1) return; // keep at least 1 cell per row
+      state[r].splice(c, 1);
+      saveGridState(basinId);
+      renderGrid(basinId);
+    });
+  });
+  gridEl.querySelectorAll('.row-remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const r = parseInt(btn.dataset.row, 10);
+      if(state.length <= 1) return; // keep at least 1 row
+      state.splice(r, 1);
+      saveGridState(basinId);
+      renderGrid(basinId);
+    });
   });
 }
 
-function onPointerDown(e){
+function onPointerDown(e, basinId){
   e.stopPropagation();
   const cell = e.currentTarget.closest('.cell');
-  const index = parseInt(cell.dataset.index, 10);
-  dragState = { startX: e.clientX, startY: e.clientY, index, moved:false, el: cell };
+  const row = parseInt(cell.dataset.row, 10), col = parseInt(cell.dataset.col, 10);
+  dragState = { basinId, startX: e.clientX, startY: e.clientY, row, col, moved:false, el: cell };
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp, { once:true });
 }
@@ -758,7 +1426,7 @@ function onPointerMove(e){
   if(!dragState.moved && Math.hypot(dx,dy) > 9){
     dragState.moved = true;
     dragState.el.classList.add('dragging');
-    const cage = state[dragState.index];
+    const cage = basins[dragState.basinId].state[dragState.row][dragState.col];
     ghost.style.display = 'block';
     ghost.innerHTML = cage ? `<strong style="color:var(--tide)">${escapeHtml(cage.id)}</strong> — déplacement…` : 'Case vide';
     document.querySelectorAll('.cell').forEach(c => { if(c !== dragState.el) c.style.cursor='default'; });
@@ -769,7 +1437,7 @@ function onPointerMove(e){
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const targetCell = under ? under.closest('.cell') : null;
     document.querySelectorAll('.cell.drop-target').forEach(c => c.classList.remove('drop-target'));
-    if(targetCell && targetCell !== dragState.el){
+    if(targetCell && targetCell !== dragState.el && !targetCell.classList.contains('spacer')){
       targetCell.classList.add('drop-target');
     }
   }
@@ -779,7 +1447,10 @@ function onPointerUp(e){
   window.removeEventListener('pointermove', onPointerMove);
   if(!dragState) return;
   const wasMoved = dragState.moved;
-  const fromIndex = dragState.index;
+  const basinId = dragState.basinId;
+  const state = basins[basinId].state;
+  const fromRow = dragState.row;
+  const fromCol = dragState.col;
   const fromEl = dragState.el;
 
   if(wasMoved){
@@ -791,18 +1462,19 @@ function onPointerUp(e){
     ghost.style.display = 'none';
     document.querySelectorAll('.cell').forEach(c => c.style.cursor='');
 
-    if(targetCell){
-      const toIndex = parseInt(targetCell.dataset.index, 10);
-      if(toIndex !== fromIndex){
-        const tmp = state[fromIndex];
-        state[fromIndex] = state[toIndex];
-        state[toIndex] = tmp;
-        saveState();
-        render();
+    if(targetCell && !targetCell.classList.contains('spacer') && targetCell.closest('.grid') === fromEl.closest('.grid')){
+      const toRow = parseInt(targetCell.dataset.row, 10), toCol = parseInt(targetCell.dataset.col, 10);
+      if(toRow !== fromRow || toCol !== fromCol){
+        const tmp = state[fromRow][fromCol];
+        state[fromRow][fromCol] = state[toRow][toCol];
+        state[toRow][toCol] = tmp;
+        saveGridState(basinId);
+        renderGrid(basinId);
         requestAnimationFrame(() => {
-          const cells = document.querySelectorAll('.cell');
-          cells[fromIndex] && cells[fromIndex].classList.add('just-dropped');
-          cells[toIndex] && cells[toIndex].classList.add('just-dropped');
+          const a = basins[basinId].gridEl.querySelector(`.cell[data-row="${fromRow}"][data-col="${fromCol}"]`);
+          const b = basins[basinId].gridEl.querySelector(`.cell[data-row="${toRow}"][data-col="${toCol}"]`);
+          a && a.classList.add('just-dropped');
+          b && b.classList.add('just-dropped');
         });
       }
     }
@@ -812,12 +1484,148 @@ function onPointerUp(e){
   dragState = null;
 }
 
+/* ---------------- Rectangular basin: click-to-place + free drag ---------------- */
+function attachRectPointerHandlers(){
+  document.querySelectorAll('.rect-cage').forEach(card => {
+    card.addEventListener('click', () => {
+      if(suppressNextClick){ suppressNextClick = false; return; }
+      openPanel({ type:'rect', index: parseInt(card.dataset.index, 10) });
+    });
+    const handle = card.querySelector('.drag-handle');
+    handle.addEventListener('pointerdown', onRectPointerDown);
+    const delBtn = card.querySelector('.del-cross');
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const index = parseInt(card.dataset.index, 10);
+      stateRect.splice(index, 1);
+      saveStateRect();
+      renderRect();
+    });
+  });
+}
+
+rectEl.addEventListener('click', (e) => {
+  if(e.target !== rectEl) return;
+  if(suppressNextClick){ suppressNextClick = false; return; }
+  const bounds = rectEl.getBoundingClientRect();
+  let x = ((e.clientX - bounds.left) / bounds.width) * 100;
+  let y = ((e.clientY - bounds.top) / bounds.height) * 100;
+  x = Math.min(92, Math.max(8, x));
+  y = Math.min(88, Math.max(12, y));
+  pendingRectPos = { x, y };
+  openPanel({ type:'rect', index: null });
+});
+
+let rectDragState = null; // {startX, startY, index, moved, el, lastX, lastY}
+
+function onRectPointerDown(e){
+  e.stopPropagation();
+  const card = e.currentTarget.closest('.rect-cage');
+  const index = parseInt(card.dataset.index, 10);
+  rectDragState = { startX: e.clientX, startY: e.clientY, index, moved:false, el: card };
+  window.addEventListener('pointermove', onRectPointerMove);
+  window.addEventListener('pointerup', onRectPointerUp, { once:true });
+}
+
+function onRectPointerMove(e){
+  if(!rectDragState) return;
+  const dx = e.clientX - rectDragState.startX;
+  const dy = e.clientY - rectDragState.startY;
+  if(!rectDragState.moved && Math.hypot(dx,dy) > 9){
+    rectDragState.moved = true;
+    rectDragState.el.classList.add('dragging-live');
+  }
+  if(rectDragState.moved){
+    const bounds = rectEl.getBoundingClientRect();
+    let x = ((e.clientX - bounds.left) / bounds.width) * 100;
+    let y = ((e.clientY - bounds.top) / bounds.height) * 100;
+    x = Math.min(97, Math.max(3, x));
+    y = Math.min(95, Math.max(5, y));
+    rectDragState.el.style.left = x + '%';
+    rectDragState.el.style.top = y + '%';
+    rectDragState.lastX = x;
+    rectDragState.lastY = y;
+  }
+}
+
+function onRectPointerUp(e){
+  window.removeEventListener('pointermove', onRectPointerMove);
+  if(!rectDragState) return;
+  const wasMoved = rectDragState.moved;
+  const index = rectDragState.index;
+  rectDragState.el.classList.remove('dragging-live');
+  if(wasMoved){
+    suppressNextClick = true;
+    stateRect[index].x = rectDragState.lastX;
+    stateRect[index].y = rectDragState.lastY;
+    saveStateRect();
+    renderRect();
+  }
+  rectDragState = null;
+}
+
+/* ---------------- Tabs ---------------- */
+let activeTab = 'b3';
+let lastGridSubTab = 'b3';
+const GRID_TAB_IDS = ['b3', 'b2', 'b1'];
+
+function switchSubTab(basinId){
+  activeTab = basinId;
+  lastGridSubTab = basinId;
+  document.getElementById('subtabBtnB3').classList.toggle('active', basinId==='b3');
+  document.getElementById('subtabBtnB2').classList.toggle('active', basinId==='b2');
+  document.getElementById('subtabBtnB1').classList.toggle('active', basinId==='b1');
+  document.getElementById('subtabB3').classList.toggle('active', basinId==='b3');
+  document.getElementById('subtabB2').classList.toggle('active', basinId==='b2');
+  document.getElementById('subtabB1').classList.toggle('active', basinId==='b1');
+  document.getElementById('footerHint').textContent = "GLISSER LA POIGNÉE (⠿) EN HAUT À DROITE D'UNE CASE POUR PERMUTER · TAPOTER POUR ÉDITER";
+  const flat = basins[basinId].state.flat().filter(c => !(c && c.spacer));
+  document.getElementById('statNum').innerHTML = `${flat.filter(c => c && !c.blocked).length}<span>/${flat.length}</span>`;
+  document.querySelector('.stat .label').textContent = 'emplacements occupés';
+}
+
+function switchTab(tab){
+  document.getElementById('tabBtnFroid').classList.toggle('active', tab==='froid');
+  document.getElementById('tabBtnRect').classList.toggle('active', tab==='rect');
+  document.getElementById('tabFroid').classList.toggle('active', tab==='froid');
+  document.getElementById('tabRect').classList.toggle('active', tab==='rect');
+  document.getElementById('clearRectBtn').style.display = tab === 'rect' ? 'inline-block' : 'none';
+
+  if(tab === 'froid'){
+    switchSubTab(lastGridSubTab);
+  } else {
+    activeTab = 'rect';
+    document.getElementById('footerHint').textContent = "TAPOTER N'IMPORTE OÙ POUR AJOUTER UNE CAGE · GLISSER LA POIGNÉE (⠿) POUR LA DÉPLACER LIBREMENT";
+    document.getElementById('statNum').innerHTML = `${stateRect.length}`;
+    document.querySelector('.stat .label').textContent = 'cages placées';
+  }
+}
+
+document.getElementById('tabBtnFroid').addEventListener('click', () => switchTab('froid'));
+document.getElementById('tabBtnRect').addEventListener('click', () => switchTab('rect'));
+document.getElementById('subtabBtnB3').addEventListener('click', () => switchSubTab('b3'));
+document.getElementById('subtabBtnB2').addEventListener('click', () => switchSubTab('b2'));
+document.getElementById('subtabBtnB1').addEventListener('click', () => switchSubTab('b1'));
+
+document.getElementById('clearRectBtn').addEventListener('click', () => {
+  if(stateRect.length === 0) return;
+  if(confirm(`Supprimer les ${stateRect.length} cage(s) du bassin rectangulaire (les 2 vues) ? Cette action est irréversible.`)){
+    stateRect = [];
+    saveStateRect();
+    renderRect();
+  }
+});
+
 /* ---------------- Edit panel ---------------- */
 const refRows = document.getElementById('refRows');
 const cageIdInput = document.getElementById('cageId');
 const cageDateInput = document.getElementById('cageDate');
 const panelTitle = document.getElementById('panelTitle');
 const deleteRow = document.getElementById('deleteRow');
+const optAnneau = document.getElementById('optAnneau');
+const optGrande = document.getElementById('optGrande');
+optAnneau.addEventListener('change', () => { if(optAnneau.checked) optGrande.checked = false; });
+optGrande.addEventListener('change', () => { if(optGrande.checked) optAnneau.checked = false; });
 
 function makeRefRow(name='', unit='kg', qty='', bacs='', poidsBac=''){
   const rowId = 'r' + (refIdCounter++);
@@ -901,10 +1709,16 @@ document.getElementById('addRefBtn').addEventListener('click', () => {
   refRows.appendChild(makeRefRow('', 'kg'));
 });
 
-function openPanel(index){
-  editingIndex = index;
-  const cage = state[index];
+function openPanel(target){
+  editingTarget = target;
+  const cage = target.type === 'grid' ? basins[target.basinId].state[target.row][target.col]
+    : (target.index !== null ? stateRect[target.index] : null);
   refRows.innerHTML = '';
+
+  document.getElementById('commentFieldWrap').style.display = target.type === 'rect' ? 'block' : 'none';
+  document.getElementById('cageComment').value = (cage && cage.comment) ? cage.comment : '';
+  optAnneau.checked = cage && cage.shape === 'anneau';
+  optGrande.checked = cage && cage.shape === 'grande';
 
   if(cage){
     panelTitle.textContent = `Cage ${cage.id}`;
@@ -912,10 +1726,11 @@ function openPanel(index){
     cageDateInput.value = cage.date || '';
     cage.refs.forEach(r => refRows.appendChild(makeRefRow(r.name, r.unit, r.qty || '', r.bacs || '', r.poidsBac || '')));
     deleteRow.style.display = 'flex';
+    document.getElementById('deleteBtn').textContent = target.type === 'grid' ? 'Vider cet emplacement' : 'Supprimer cette cage';
   } else {
     panelTitle.textContent = 'Nouvelle cage';
     cageIdInput.value = '';
-    cageDateInput.value = '';
+    cageDateInput.value = todayISO();
     refRows.appendChild(makeRefRow('', 'kg'));
     deleteRow.style.display = 'none';
   }
@@ -925,7 +1740,8 @@ function openPanel(index){
 
 function closePanel(){
   overlay.classList.remove('open');
-  editingIndex = null;
+  editingTarget = null;
+  pendingRectPos = null;
 }
 
 document.getElementById('cancelBtn').addEventListener('click', closePanel);
@@ -951,17 +1767,46 @@ document.getElementById('saveBtn').addEventListener('click', () => {
       if(name || qty) refs.push({ name, unit, qty });
     }
   });
-  state[editingIndex] = { id, refs, date: cageDateInput.value };
-  saveState();
+  const cageData = { id, refs, date: cageDateInput.value };
+  cageData.shape = optAnneau.checked ? 'anneau' : (optGrande.checked ? 'grande' : 'normal');
+  if(editingTarget.type === 'rect'){
+    cageData.comment = document.getElementById('cageComment').value.trim();
+  }
+
+  if(editingTarget.type === 'grid'){
+    basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col] = cageData;
+    saveGridState(editingTarget.basinId);
+    renderGrid(editingTarget.basinId);
+  } else {
+    if(editingTarget.index === null){
+      cageData.x = pendingRectPos ? pendingRectPos.x : 50;
+      cageData.y = pendingRectPos ? pendingRectPos.y : 50;
+      cageData.page = rectPage;
+      stateRect.push(cageData);
+    } else {
+      const existing = stateRect[editingTarget.index];
+      cageData.x = existing.x;
+      cageData.y = existing.y;
+      cageData.page = existing.page || 0;
+      stateRect[editingTarget.index] = cageData;
+    }
+    saveStateRect();
+    renderRect();
+  }
   closePanel();
-  render();
 });
 
 document.getElementById('deleteBtn').addEventListener('click', () => {
-  state[editingIndex] = null;
-  saveState();
+  if(editingTarget.type === 'grid'){
+    basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col] = null;
+    saveGridState(editingTarget.basinId);
+    renderGrid(editingTarget.basinId);
+  } else if(editingTarget.index !== null){
+    stateRect.splice(editingTarget.index, 1);
+    saveStateRect();
+    renderRect();
+  }
   closePanel();
-  render();
 });
 
 document.addEventListener('keydown', (e) => {
@@ -983,7 +1828,9 @@ document.getElementById('settingsSaveBtn').addEventListener('click', () => {
   document.getElementById('settingsOverlay').classList.remove('open');
 });
 
-render();
+BASIN_CONFIGS.forEach(cfg => renderGrid(cfg.id));
+renderRect();
+switchTab('froid');
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
