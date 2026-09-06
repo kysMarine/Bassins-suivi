@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bassins-kys-v5';
+const CACHE_NAME = 'bassins-kys-v6';
 const ASSETS = [
   './',
   './index.html',

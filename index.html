@@ -937,8 +937,8 @@
 </div>
 
 <div class="summary-wrap">
-  <h2 class="summary-title">Récapitulatif du bassin</h2>
-  <p class="summary-subtitle">Toutes cages confondues, référence par référence</p>
+  <h2 class="summary-title" id="summaryTitle">Récapitulatif — Bassin 3</h2>
+  <p class="summary-subtitle" id="summarySubtitle">Cages de ce bassin, référence par référence</p>
   <div class="summary-grid">
     <div class="summary-block recent">
       <h3><span class="dot"></span>Déposées il y a -48h</h3>
@@ -1288,6 +1288,8 @@ function fmtQty(n, unit){
   return unit === 'kg' ? `${val} Kg` : `${val} p`;
 }
 
+const BASIN_LABELS = { b3:'Bassin 3', b2:'Bassin 2', b1:'Bassin 1', rect:'Bassin Plage' };
+
 function renderSummary(){
   const recent = {}; // key "name||unit" -> total
   const aged = {};
@@ -1303,8 +1305,17 @@ function renderSummary(){
       });
     });
   };
-  BASIN_CONFIGS.forEach(cfg => addFrom(basins[cfg.id].state.flat()));
-  addFrom(stateRect);
+
+  if(activeTab === 'rect'){
+    addFrom(stateRect);
+  } else if(basins[activeTab]){
+    addFrom(basins[activeTab].state.flat());
+  }
+
+  const titleEl = document.getElementById('summaryTitle');
+  const subtitleEl = document.getElementById('summarySubtitle');
+  if(titleEl) titleEl.textContent = `Récapitulatif — ${BASIN_LABELS[activeTab] || ''}`;
+  if(subtitleEl) subtitleEl.textContent = 'Cages de ce bassin, référence par référence';
 
   const fillBlock = (elId, data) => {
     const el = document.getElementById(elId);
@@ -1582,6 +1593,7 @@ function switchSubTab(basinId){
   const flat = basins[basinId].state.flat().filter(c => !(c && c.spacer));
   document.getElementById('statNum').innerHTML = `${flat.filter(c => c && !c.blocked).length}<span>/${flat.length}</span>`;
   document.querySelector('.stat .label').textContent = 'emplacements occupés';
+  renderSummary();
 }
 
 function switchTab(tab){
@@ -1598,6 +1610,7 @@ function switchTab(tab){
     document.getElementById('footerHint').textContent = "TAPOTER N'IMPORTE OÙ POUR AJOUTER UNE CAGE · GLISSER LA POIGNÉE (⠿) POUR LA DÉPLACER LIBREMENT";
     document.getElementById('statNum').innerHTML = `${stateRect.length}`;
     document.querySelector('.stat .label').textContent = 'cages placées';
+    renderSummary();
   }
 }
 
