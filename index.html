@@ -860,6 +860,8 @@
     font-style:italic;
   }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -1007,89 +1009,137 @@
 </div>
 
 <script>
-const RECT_STORAGE_KEY = 'kysBasinRect_v1';
-const DEFAULT_POIDS_KEY = 'kysDefaultPoidsBac_v1';
+const firebaseConfig = {
+  apiKey: "AIzaSyCGvW1LbQJ4-bg3S45qNHU6nJWo_hDi7z0",
+  authDomain: "kys-marine-bassins.firebaseapp.com",
+  projectId: "kys-marine-bassins",
+  storageBucket: "kys-marine-bassins.firebasestorage.app",
+  messagingSenderId: "559893289222",
+  appId: "1:559893289222:web:1ce22f4dea3795ac1d6687"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+  console.warn('Persistance hors-ligne indisponible :', err.code);
+});
+const COLLECTION = 'kysBassinsData';
+
 const N = 16;
 
 const BASIN_CONFIGS = [
-  { id:'b3', key:'kysBasinCages_b3_v1', legacy:false },
-  { id:'b2', key:'kysBasinCages_b2_v1', legacy:false },
-  { id:'b1', key:'kysBasinCages_b1_v1', legacy:true } // inherits any pre-existing single-basin data
+  { id:'b3', legacyKey:'kysBasinCages_b3_v1', legacy:false },
+  { id:'b2', legacyKey:'kysBasinCages_b2_v1', legacy:false },
+  { id:'b1', legacyKey:'kysBasinCages_b1_v1', legacy:true } // inherits any pre-existing single-basin data
 ];
 const LEGACY_STORAGE_KEY = 'kysBasinCages_v1';
+const LEGACY_RECT_KEY = 'kysBasinRect_v1';
+const LEGACY_POIDS_KEY = 'kysDefaultPoidsBac_v1';
 
 function emptyGrid(){
   return [0,1,2,3].map(() => new Array(4).fill(null));
 }
 
-function loadGridState(key, isLegacyTarget){
+function migrateLegacyGrid(raw){
   try{
-    const raw = localStorage.getItem(key);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      if(Array.isArray(parsed) && parsed.length){
-        if(Array.isArray(parsed[0])) return parsed; // already row-based
-        if(parsed.length === N){ // legacy flat 16-slot array — migrate to 4 rows of 4
-          const rows = [];
-          for(let r=0; r<4; r++) rows.push(parsed.slice(r*4, r*4+4));
-          return rows;
-        }
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed) && parsed.length){
+      if(Array.isArray(parsed[0])) return parsed; // already row-based
+      if(parsed.length === N){ // legacy flat 16-slot array — migrate to 4 rows of 4
+        const rows = [];
+        for(let r=0; r<4; r++) rows.push(parsed.slice(r*4, r*4+4));
+        return rows;
       }
     }
   }catch(e){}
-  // nothing stored under this basin's own key yet — if this basin inherits legacy data, try the old shared key
-  if(isLegacyTarget){
-    try{
-      const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if(raw){
-        const parsed = JSON.parse(raw);
-        if(Array.isArray(parsed) && parsed.length){
-          if(Array.isArray(parsed[0])) return parsed;
-          if(parsed.length === N){
-            const rows = [];
-            for(let r=0; r<4; r++) rows.push(parsed.slice(r*4, r*4+4));
-            return rows;
-          }
-        }
-      }
-    }catch(e){}
-  }
-  return emptyGrid();
+  return null;
 }
 
 const basins = {};
 BASIN_CONFIGS.forEach(cfg => {
   basins[cfg.id] = {
-    state: loadGridState(cfg.key, cfg.legacy),
+    state: emptyGrid(),
     gridEl: document.getElementById('grid' + cfg.id.toUpperCase())
   };
 });
+
 function saveGridState(basinId){
-  localStorage.setItem(BASIN_CONFIGS.find(c => c.id === basinId).key, JSON.stringify(basins[basinId].state));
+  db.collection(COLLECTION).doc(basinId).set({
+    json: JSON.stringify(basins[basinId].state),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch((e) => console.warn('Écriture Firestore échouée (' + basinId + ') :', e.message));
 }
 
-function loadStateRect(){
-  try{
-    const raw = localStorage.getItem(RECT_STORAGE_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      if(Array.isArray(parsed)) return parsed;
+BASIN_CONFIGS.forEach(cfg => {
+  db.collection(COLLECTION).doc(cfg.id).onSnapshot((snap) => {
+    if(snap.exists && snap.data().json){
+      try{
+        basins[cfg.id].state = JSON.parse(snap.data().json);
+      }catch(e){}
+    } else {
+      // nothing in Firestore yet — seed from this basin's own old localStorage key,
+      // or (for the legacy target basin) the original single-basin key, else start empty
+      let seed = null;
+      try{
+        const own = localStorage.getItem(cfg.legacyKey);
+        if(own) seed = migrateLegacyGrid(own);
+      }catch(e){}
+      if(!seed && cfg.legacy){
+        try{
+          const old = localStorage.getItem(LEGACY_STORAGE_KEY);
+          if(old) seed = migrateLegacyGrid(old);
+        }catch(e){}
+      }
+      basins[cfg.id].state = seed || emptyGrid();
+      saveGridState(cfg.id); // seed Firestore so every device converges on the same starting point
     }
-  }catch(e){}
-  return [];
-}
+    renderGrid(cfg.id);
+  }, (err) => console.warn('Lecture Firestore échouée (' + cfg.id + ') :', err.message));
+});
+
 function saveStateRect(){
-  localStorage.setItem(RECT_STORAGE_KEY, JSON.stringify(stateRect));
+  db.collection(COLLECTION).doc('plage').set({
+    json: JSON.stringify(stateRect),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch((e) => console.warn('Écriture Firestore échouée (plage) :', e.message));
 }
+
+let stateRect = [];
+db.collection(COLLECTION).doc('plage').onSnapshot((snap) => {
+  if(snap.exists && snap.data().json){
+    try{ stateRect = JSON.parse(snap.data().json); }catch(e){}
+  } else {
+    let seed = [];
+    try{
+      const old = localStorage.getItem(LEGACY_RECT_KEY);
+      if(old){ const parsed = JSON.parse(old); if(Array.isArray(parsed)) seed = parsed; }
+    }catch(e){}
+    stateRect = seed;
+    saveStateRect();
+  }
+  renderRect();
+}, (err) => console.warn('Lecture Firestore échouée (plage) :', err.message));
 
 function loadDefaultPoidsBac(){
-  return localStorage.getItem(DEFAULT_POIDS_KEY) || '';
+  return window.__defaultPoidsBac || '';
 }
 function saveDefaultPoidsBac(val){
-  localStorage.setItem(DEFAULT_POIDS_KEY, val);
+  window.__defaultPoidsBac = val;
+  db.collection(COLLECTION).doc('settings').set({
+    defaultPoidsBac: val,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch((e) => console.warn('Écriture Firestore échouée (settings) :', e.message));
 }
+db.collection(COLLECTION).doc('settings').onSnapshot((snap) => {
+  if(snap.exists && typeof snap.data().defaultPoidsBac === 'string'){
+    window.__defaultPoidsBac = snap.data().defaultPoidsBac;
+  } else {
+    let seed = '';
+    try{ seed = localStorage.getItem(LEGACY_POIDS_KEY) || ''; }catch(e){}
+    window.__defaultPoidsBac = seed;
+    if(seed) saveDefaultPoidsBac(seed);
+  }
+}, (err) => console.warn('Lecture Firestore échouée (settings) :', err.message));
 
-let stateRect = loadStateRect();
 let editingTarget = null; // { type: 'grid', basinId, row, col } | { type: 'rect', index: number|null }
 let pendingRectPos = null; // { x, y } percentages, for a new rect cage being created
 let rectPage = 0;
