@@ -859,6 +859,41 @@
     color: rgba(241,236,221,0.35);
     font-style:italic;
   }
+
+  .history-wrap{
+    max-width:900px;
+    margin: 28px auto 60px;
+    padding: 0 6vw;
+  }
+  .history-day{
+    margin-bottom: 22px;
+  }
+  .history-day-title{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-weight:600;
+    font-size:16px;
+    color: var(--tide);
+    margin: 0 0 10px;
+    padding-bottom:6px;
+    border-bottom:1px solid rgba(241,236,221,0.14);
+  }
+  .history-entry{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    padding:7px 4px;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:12.5px;
+    border-bottom:1px solid rgba(241,236,221,0.06);
+  }
+  .history-time{ color: var(--shell); flex-shrink:0; width:44px; }
+  .history-basin{ color: var(--tide); flex-shrink:0; width:110px; }
+  .history-cage{ color: var(--foam); font-weight:600; flex-shrink:0; width:70px; }
+  .history-action{ color: var(--shell); }
+  .history-action.created{ color:#5FBF7A; }
+  .history-action.edited{ color:#C79A4B; }
+  .history-action.deleted{ color:#E8604A; }
+  .history-action.moved{ color:#7FB3D5; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -883,6 +918,7 @@
 <div class="tabs">
   <button class="tab-btn active" id="tabBtnFroid" type="button">Bassin Froid</button>
   <button class="tab-btn" id="tabBtnRect" type="button">Bassin Plage</button>
+  <button class="tab-btn" id="tabBtnHistory" type="button">Historique</button>
 </div>
 
 <div class="tab-panel active" id="tabFroid">
@@ -935,6 +971,12 @@
     </div>
     <div class="wave bottom"></div>
     <div class="rect-page-label" id="rectPageLabel">Vue 1 / 2</div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tabHistory">
+  <div class="history-wrap" id="historyWrap">
+    <div class="summary-empty">Chargement de l'historique…</div>
   </div>
 </div>
 
@@ -1340,6 +1382,75 @@ function fmtQty(n, unit){
 
 const BASIN_LABELS = { b3:'Bassin 3', b2:'Bassin 2', b1:'Bassin 1', rect:'Bassin Plage' };
 
+/* ---------------- Historique (journal des ajouts/modifs/suppressions/déplacements) ---------------- */
+const ACTION_LABELS = {
+  created: 'Créée',
+  edited: 'Modifiée',
+  deleted: 'Supprimée',
+  moved: 'Déplacée',
+  cleared: 'Vidé (toutes les cages)'
+};
+
+function logHistory(basinLabel, cageId, action){
+  db.collection('kysHistory').add({
+    ts: Date.now(),
+    basin: basinLabel,
+    cageId: cageId || '—',
+    action: action
+  }).catch((e) => console.warn('Écriture historique échouée :', e.message));
+}
+
+let historyEntries = [];
+db.collection('kysHistory').orderBy('ts', 'desc').limit(500).onSnapshot((snap) => {
+  historyEntries = [];
+  snap.forEach((doc) => historyEntries.push(doc.data()));
+  renderHistory();
+}, (err) => console.warn('Lecture historique échouée :', err.message));
+
+function renderHistory(){
+  const historyBtn = document.getElementById('tabBtnHistory');
+  if(historyBtn && historyBtn.classList.contains('active')){
+    document.getElementById('statNum').innerHTML = `${historyEntries.length}`;
+  }
+  const wrap = document.getElementById('historyWrap');
+  if(!wrap) return;
+  if(historyEntries.length === 0){
+    wrap.innerHTML = `<div class="summary-empty">Aucune activité enregistrée pour l'instant</div>`;
+    return;
+  }
+
+  const groups = {}; // "YYYY-MM-DD" -> entries[]
+  const dayLabelFor = {};
+  historyEntries.forEach((entry) => {
+    const d = new Date(entry.ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(!groups[key]){
+      groups[key] = [];
+      dayLabelFor[key] = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    }
+    groups[key].push(entry);
+  });
+
+  const dayKeys = Object.keys(groups).sort((a,b) => b.localeCompare(a));
+  wrap.innerHTML = dayKeys.map((key) => {
+    const entries = groups[key];
+    const rows = entries.map((entry) => {
+      const time = new Date(entry.ts).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      const actionLabel = ACTION_LABELS[entry.action] || entry.action;
+      return `<div class="history-entry">
+        <span class="history-time">${time}</span>
+        <span class="history-basin">${escapeHtml(entry.basin)}</span>
+        <span class="history-cage">${escapeHtml(entry.cageId)}</span>
+        <span class="history-action ${entry.action}">${actionLabel}</span>
+      </div>`;
+    }).join('');
+    return `<div class="history-day">
+      <h3 class="history-day-title">${dayLabelFor[key]}</h3>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
 function renderSummary(){
   const recent = {}; // key "name||unit" -> total
   const aged = {};
@@ -1414,9 +1525,11 @@ function attachGridPointerHandlers(basinId){
       e.stopPropagation();
       const cell = e.currentTarget.closest('.cell');
       const r = parseInt(cell.dataset.row, 10), c = parseInt(cell.dataset.col, 10);
+      const cage = state[r][c];
       state[r][c] = null;
       saveGridState(basinId);
       renderGrid(basinId);
+      if(cage && !cage.blocked) logHistory(BASIN_LABELS[basinId], cage.id, 'deleted');
     });
   });
   gridEl.querySelectorAll('.block-btn').forEach(btn => {
@@ -1527,10 +1640,14 @@ function onPointerUp(e){
       const toRow = parseInt(targetCell.dataset.row, 10), toCol = parseInt(targetCell.dataset.col, 10);
       if(toRow !== fromRow || toCol !== fromCol){
         const tmp = state[fromRow][fromCol];
+        const movedFrom = state[fromRow][fromCol];
+        const movedTo = state[toRow][toCol];
         state[fromRow][fromCol] = state[toRow][toCol];
         state[toRow][toCol] = tmp;
         saveGridState(basinId);
         renderGrid(basinId);
+        if(movedFrom && !movedFrom.blocked) logHistory(BASIN_LABELS[basinId], movedFrom.id, 'moved');
+        if(movedTo && !movedTo.blocked) logHistory(BASIN_LABELS[basinId], movedTo.id, 'moved');
         requestAnimationFrame(() => {
           const a = basins[basinId].gridEl.querySelector(`.cell[data-row="${fromRow}"][data-col="${fromCol}"]`);
           const b = basins[basinId].gridEl.querySelector(`.cell[data-row="${toRow}"][data-col="${toCol}"]`);
@@ -1558,9 +1675,11 @@ function attachRectPointerHandlers(){
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const index = parseInt(card.dataset.index, 10);
+      const cage = stateRect[index];
       stateRect.splice(index, 1);
       saveStateRect();
       renderRect();
+      if(cage) logHistory(BASIN_LABELS.rect, cage.id, 'deleted');
     });
   });
 }
@@ -1621,6 +1740,7 @@ function onRectPointerUp(e){
     stateRect[index].y = rectDragState.lastY;
     saveStateRect();
     renderRect();
+    logHistory(BASIN_LABELS.rect, stateRect[index].id, 'moved');
   }
   rectDragState = null;
 }
@@ -1649,33 +1769,42 @@ function switchSubTab(basinId){
 function switchTab(tab){
   document.getElementById('tabBtnFroid').classList.toggle('active', tab==='froid');
   document.getElementById('tabBtnRect').classList.toggle('active', tab==='rect');
+  document.getElementById('tabBtnHistory').classList.toggle('active', tab==='historique');
   document.getElementById('tabFroid').classList.toggle('active', tab==='froid');
   document.getElementById('tabRect').classList.toggle('active', tab==='rect');
+  document.getElementById('tabHistory').classList.toggle('active', tab==='historique');
   document.getElementById('clearRectBtn').style.display = tab === 'rect' ? 'inline-block' : 'none';
 
   if(tab === 'froid'){
     switchSubTab(lastGridSubTab);
-  } else {
+  } else if(tab === 'rect'){
     activeTab = 'rect';
     document.getElementById('footerHint').textContent = "TAPOTER N'IMPORTE OÙ POUR AJOUTER UNE CAGE · GLISSER LA POIGNÉE (⠿) POUR LA DÉPLACER LIBREMENT";
     document.getElementById('statNum').innerHTML = `${stateRect.length}`;
     document.querySelector('.stat .label').textContent = 'cages placées';
     renderSummary();
+  } else {
+    document.getElementById('footerHint').textContent = "JOURNAL EN LECTURE SEULE · GROUPÉ PAR JOUR, LE PLUS RÉCENT EN PREMIER";
+    document.getElementById('statNum').innerHTML = `${historyEntries.length}`;
+    document.querySelector('.stat .label').textContent = 'entrées';
   }
 }
 
 document.getElementById('tabBtnFroid').addEventListener('click', () => switchTab('froid'));
 document.getElementById('tabBtnRect').addEventListener('click', () => switchTab('rect'));
+document.getElementById('tabBtnHistory').addEventListener('click', () => switchTab('historique'));
 document.getElementById('subtabBtnB3').addEventListener('click', () => switchSubTab('b3'));
 document.getElementById('subtabBtnB2').addEventListener('click', () => switchSubTab('b2'));
 document.getElementById('subtabBtnB1').addEventListener('click', () => switchSubTab('b1'));
 
 document.getElementById('clearRectBtn').addEventListener('click', () => {
   if(stateRect.length === 0) return;
-  if(confirm(`Supprimer les ${stateRect.length} cage(s) du bassin rectangulaire (les 2 vues) ? Cette action est irréversible.`)){
+  const count = stateRect.length;
+  if(confirm(`Supprimer les ${count} cage(s) du bassin rectangulaire (les 2 vues) ? Cette action est irréversible.`)){
     stateRect = [];
     saveStateRect();
     renderRect();
+    logHistory(BASIN_LABELS.rect, `${count} cage(s)`, 'cleared');
   }
 });
 
@@ -1837,21 +1966,26 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   }
 
   if(editingTarget.type === 'grid'){
+    const wasOccupied = !!(basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col]
+      && !basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col].blocked);
     basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col] = cageData;
     saveGridState(editingTarget.basinId);
     renderGrid(editingTarget.basinId);
+    logHistory(BASIN_LABELS[editingTarget.basinId], id, wasOccupied ? 'edited' : 'created');
   } else {
     if(editingTarget.index === null){
       cageData.x = pendingRectPos ? pendingRectPos.x : 50;
       cageData.y = pendingRectPos ? pendingRectPos.y : 50;
       cageData.page = rectPage;
       stateRect.push(cageData);
+      logHistory(BASIN_LABELS.rect, id, 'created');
     } else {
       const existing = stateRect[editingTarget.index];
       cageData.x = existing.x;
       cageData.y = existing.y;
       cageData.page = existing.page || 0;
       stateRect[editingTarget.index] = cageData;
+      logHistory(BASIN_LABELS.rect, id, 'edited');
     }
     saveStateRect();
     renderRect();
@@ -1861,13 +1995,17 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
 document.getElementById('deleteBtn').addEventListener('click', () => {
   if(editingTarget.type === 'grid'){
+    const cage = basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col];
     basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col] = null;
     saveGridState(editingTarget.basinId);
     renderGrid(editingTarget.basinId);
+    if(cage && !cage.blocked) logHistory(BASIN_LABELS[editingTarget.basinId], cage.id, 'deleted');
   } else if(editingTarget.index !== null){
+    const cage = stateRect[editingTarget.index];
     stateRect.splice(editingTarget.index, 1);
     saveStateRect();
     renderRect();
+    if(cage) logHistory(BASIN_LABELS.rect, cage.id, 'deleted');
   }
   closePanel();
 });
