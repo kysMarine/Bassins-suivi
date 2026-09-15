@@ -902,6 +902,11 @@
     font-size:11.5px;
     font-style:italic;
   }
+  .history-changed{
+    color: var(--coral);
+    font-weight:600;
+    font-style:normal;
+  }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -983,12 +988,16 @@
 </div>
 
 <div class="tab-panel" id="tabHistory">
+  <div class="subtabs">
+    <button class="subtab-btn active" id="histSubBtnFroid" type="button">Bassin Froid</button>
+    <button class="subtab-btn" id="histSubBtnPlage" type="button">Bassin Plage</button>
+  </div>
   <div class="history-wrap" id="historyWrap">
     <div class="summary-empty">Chargement de l'historique…</div>
   </div>
 </div>
 
-<div class="summary-wrap">
+<div class="summary-wrap" id="summaryWrap">
   <h2 class="summary-title" id="summaryTitle">Récapitulatif — Bassin 3</h2>
   <p class="summary-subtitle" id="summarySubtitle">Cages de ce bassin, référence par référence</p>
   <div class="summary-grid">
@@ -1399,24 +1408,46 @@ const ACTION_LABELS = {
   cleared: 'Vidé (toutes les cages)'
 };
 
-function summarizeCage(cage){
-  if(!cage) return '';
-  const parts = [];
-  if(cage.refs && cage.refs.length){
-    parts.push(cage.refs.map(r => `${r.name} ${fmtQty(refTotal(r), r.unit)}`).join(', '));
-  }
-  if(cage.date) parts.push(fmtDate(cage.date));
-  if(cage.comment) parts.push(`"${cage.comment}"`);
-  return parts.join(' · ');
+function refDisplay(r){
+  return `${r.name} ${fmtQty(refTotal(r), r.unit)}`;
 }
 
-function logHistory(basinLabel, cageId, action, detail){
+// Builds the detail line as an array of {text, changed} parts.
+// When oldCage is provided, any ref that's new or whose value differs from the old cage
+// is flagged changed:true (rendered in red); date/comment changes are flagged the same way.
+// When oldCage is omitted (creation, deletion, move), nothing is flagged — the action label
+// already conveys what happened.
+function cageDetailParts(cage, oldCage){
+  if(!cage) return [];
+  const parts = [];
+  const oldRefMap = {};
+  if(oldCage && oldCage.refs) oldCage.refs.forEach(r => { oldRefMap[r.name] = refDisplay(r); });
+
+  if(cage.refs && cage.refs.length){
+    cage.refs.forEach(r => {
+      const text = refDisplay(r);
+      const changed = !!oldCage && oldRefMap[r.name] !== text;
+      parts.push({ text, changed });
+    });
+  }
+  if(cage.date){
+    const changed = !!oldCage && oldCage.date !== cage.date;
+    parts.push({ text: fmtDate(cage.date), changed });
+  }
+  if(cage.comment){
+    const changed = !!oldCage && oldCage.comment !== cage.comment;
+    parts.push({ text: `"${cage.comment}"`, changed });
+  }
+  return parts;
+}
+
+function logHistory(basinLabel, cageId, action, detailParts){
   db.collection('kysHistory').add({
     ts: Date.now(),
     basin: basinLabel,
     cageId: cageId || '—',
     action: action,
-    detail: detail || ''
+    detailParts: detailParts || []
   }).catch((e) => console.warn('Écriture historique échouée :', e.message));
 }
 
@@ -1431,6 +1462,8 @@ db.collection('kysHistory').orderBy('ts', 'desc').limit(500).onSnapshot((snap) =
   if(wrap) wrap.innerHTML = `<div class="summary-empty">Erreur d'accès à l'historique (${escapeHtml(err.message)}) — vérifie les règles Firestore.</div>`;
 });
 
+let historyFilter = 'froid'; // 'froid' | 'plage'
+
 function renderHistory(){
   const historyBtn = document.getElementById('tabBtnHistory');
   if(historyBtn && historyBtn.classList.contains('active')){
@@ -1438,14 +1471,20 @@ function renderHistory(){
   }
   const wrap = document.getElementById('historyWrap');
   if(!wrap) return;
-  if(historyEntries.length === 0){
+
+  const froidBasins = [BASIN_LABELS.b3, BASIN_LABELS.b2, BASIN_LABELS.b1];
+  const filtered = historyEntries.filter((entry) =>
+    historyFilter === 'froid' ? froidBasins.includes(entry.basin) : entry.basin === BASIN_LABELS.rect
+  );
+
+  if(filtered.length === 0){
     wrap.innerHTML = `<div class="summary-empty">Aucune activité enregistrée pour l'instant</div>`;
     return;
   }
 
   const groups = {}; // "YYYY-MM-DD" -> entries[]
   const dayLabelFor = {};
-  historyEntries.forEach((entry) => {
+  filtered.forEach((entry) => {
     const d = new Date(entry.ts);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if(!groups[key]){
@@ -1461,12 +1500,18 @@ function renderHistory(){
     const rows = entries.map((entry) => {
       const time = new Date(entry.ts).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
       const actionLabel = ACTION_LABELS[entry.action] || entry.action;
+      const parts = entry.detailParts || [];
+      const detailHtml = parts.length
+        ? `<span class="history-detail">${parts.map(p =>
+            p.changed ? `<span class="history-changed">${escapeHtml(p.text)}</span>` : escapeHtml(p.text)
+          ).join(' · ')}</span>`
+        : '';
       return `<div class="history-entry">
         <span class="history-time">${time}</span>
         <span class="history-basin">${escapeHtml(entry.basin)}</span>
         <span class="history-cage">${escapeHtml(entry.cageId)}</span>
         <span class="history-action ${entry.action}">${actionLabel}</span>
-        ${entry.detail ? `<span class="history-detail">${escapeHtml(entry.detail)}</span>` : ''}
+        ${detailHtml}
       </div>`;
     }).join('');
     return `<div class="history-day">
@@ -1554,7 +1599,7 @@ function attachGridPointerHandlers(basinId){
       state[r][c] = null;
       saveGridState(basinId);
       renderGrid(basinId);
-      if(cage && !cage.blocked) logHistory(BASIN_LABELS[basinId], cage.id, 'deleted', summarizeCage(cage));
+      if(cage && !cage.blocked) logHistory(BASIN_LABELS[basinId], cage.id, 'deleted', cageDetailParts(cage, null));
     });
   });
   gridEl.querySelectorAll('.block-btn').forEach(btn => {
@@ -1671,8 +1716,8 @@ function onPointerUp(e){
         state[toRow][toCol] = tmp;
         saveGridState(basinId);
         renderGrid(basinId);
-        if(movedFrom && !movedFrom.blocked) logHistory(BASIN_LABELS[basinId], movedFrom.id, 'moved', summarizeCage(movedFrom));
-        if(movedTo && !movedTo.blocked) logHistory(BASIN_LABELS[basinId], movedTo.id, 'moved', summarizeCage(movedTo));
+        if(movedFrom && !movedFrom.blocked) logHistory(BASIN_LABELS[basinId], movedFrom.id, 'moved', cageDetailParts(movedFrom, null));
+        if(movedTo && !movedTo.blocked) logHistory(BASIN_LABELS[basinId], movedTo.id, 'moved', cageDetailParts(movedTo, null));
         requestAnimationFrame(() => {
           const a = basins[basinId].gridEl.querySelector(`.cell[data-row="${fromRow}"][data-col="${fromCol}"]`);
           const b = basins[basinId].gridEl.querySelector(`.cell[data-row="${toRow}"][data-col="${toCol}"]`);
@@ -1704,7 +1749,7 @@ function attachRectPointerHandlers(){
       stateRect.splice(index, 1);
       saveStateRect();
       renderRect();
-      if(cage) logHistory(BASIN_LABELS.rect, cage.id, 'deleted', summarizeCage(cage));
+      if(cage) logHistory(BASIN_LABELS.rect, cage.id, 'deleted', cageDetailParts(cage, null));
     });
   });
 }
@@ -1765,7 +1810,7 @@ function onRectPointerUp(e){
     stateRect[index].y = rectDragState.lastY;
     saveStateRect();
     renderRect();
-    logHistory(BASIN_LABELS.rect, stateRect[index].id, 'moved', summarizeCage(stateRect[index]));
+    logHistory(BASIN_LABELS.rect, stateRect[index].id, 'moved', cageDetailParts(stateRect[index], null));
   }
   rectDragState = null;
 }
@@ -1799,6 +1844,7 @@ function switchTab(tab){
   document.getElementById('tabRect').classList.toggle('active', tab==='rect');
   document.getElementById('tabHistory').classList.toggle('active', tab==='historique');
   document.getElementById('clearRectBtn').style.display = tab === 'rect' ? 'inline-block' : 'none';
+  document.getElementById('summaryWrap').style.display = tab === 'historique' ? 'none' : 'block';
 
   if(tab === 'froid'){
     switchSubTab(lastGridSubTab);
@@ -1812,6 +1858,7 @@ function switchTab(tab){
     document.getElementById('footerHint').textContent = "JOURNAL EN LECTURE SEULE · GROUPÉ PAR JOUR, LE PLUS RÉCENT EN PREMIER";
     document.getElementById('statNum').innerHTML = `${historyEntries.length}`;
     document.querySelector('.stat .label').textContent = 'entrées';
+    renderHistory();
   }
 }
 
@@ -1821,6 +1868,19 @@ document.getElementById('tabBtnHistory').addEventListener('click', () => switchT
 document.getElementById('subtabBtnB3').addEventListener('click', () => switchSubTab('b3'));
 document.getElementById('subtabBtnB2').addEventListener('click', () => switchSubTab('b2'));
 document.getElementById('subtabBtnB1').addEventListener('click', () => switchSubTab('b1'));
+
+document.getElementById('histSubBtnFroid').addEventListener('click', () => {
+  historyFilter = 'froid';
+  document.getElementById('histSubBtnFroid').classList.add('active');
+  document.getElementById('histSubBtnPlage').classList.remove('active');
+  renderHistory();
+});
+document.getElementById('histSubBtnPlage').addEventListener('click', () => {
+  historyFilter = 'plage';
+  document.getElementById('histSubBtnPlage').classList.add('active');
+  document.getElementById('histSubBtnFroid').classList.remove('active');
+  renderHistory();
+});
 
 document.getElementById('clearRectBtn').addEventListener('click', () => {
   if(stateRect.length === 0) return;
@@ -1991,26 +2051,26 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   }
 
   if(editingTarget.type === 'grid'){
-    const wasOccupied = !!(basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col]
-      && !basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col].blocked);
+    const oldCage = basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col];
+    const wasOccupied = !!(oldCage && !oldCage.blocked);
     basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col] = cageData;
     saveGridState(editingTarget.basinId);
     renderGrid(editingTarget.basinId);
-    logHistory(BASIN_LABELS[editingTarget.basinId], id, wasOccupied ? 'edited' : 'created', summarizeCage(cageData));
+    logHistory(BASIN_LABELS[editingTarget.basinId], id, wasOccupied ? 'edited' : 'created', cageDetailParts(cageData, wasOccupied ? oldCage : null));
   } else {
     if(editingTarget.index === null){
       cageData.x = pendingRectPos ? pendingRectPos.x : 50;
       cageData.y = pendingRectPos ? pendingRectPos.y : 50;
       cageData.page = rectPage;
       stateRect.push(cageData);
-      logHistory(BASIN_LABELS.rect, id, 'created', summarizeCage(cageData));
+      logHistory(BASIN_LABELS.rect, id, 'created', cageDetailParts(cageData, null));
     } else {
       const existing = stateRect[editingTarget.index];
       cageData.x = existing.x;
       cageData.y = existing.y;
       cageData.page = existing.page || 0;
       stateRect[editingTarget.index] = cageData;
-      logHistory(BASIN_LABELS.rect, id, 'edited', summarizeCage(cageData));
+      logHistory(BASIN_LABELS.rect, id, 'edited', cageDetailParts(cageData, existing));
     }
     saveStateRect();
     renderRect();
@@ -2024,13 +2084,13 @@ document.getElementById('deleteBtn').addEventListener('click', () => {
     basins[editingTarget.basinId].state[editingTarget.row][editingTarget.col] = null;
     saveGridState(editingTarget.basinId);
     renderGrid(editingTarget.basinId);
-    if(cage && !cage.blocked) logHistory(BASIN_LABELS[editingTarget.basinId], cage.id, 'deleted', summarizeCage(cage));
+    if(cage && !cage.blocked) logHistory(BASIN_LABELS[editingTarget.basinId], cage.id, 'deleted', cageDetailParts(cage, null));
   } else if(editingTarget.index !== null){
     const cage = stateRect[editingTarget.index];
     stateRect.splice(editingTarget.index, 1);
     saveStateRect();
     renderRect();
-    if(cage) logHistory(BASIN_LABELS.rect, cage.id, 'deleted', summarizeCage(cage));
+    if(cage) logHistory(BASIN_LABELS.rect, cage.id, 'deleted', cageDetailParts(cage, null));
   }
   closePanel();
 });
