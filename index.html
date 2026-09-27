@@ -865,6 +865,45 @@
     margin: 28px auto 60px;
     padding: 0 6vw;
   }
+  .history-filter-bar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    max-width:900px;
+    margin: 18px auto 0;
+    padding: 0 6vw;
+  }
+  .history-filter-bar input{
+    background: rgba(241,236,221,0.05);
+    border:1px solid rgba(241,236,221,0.18);
+    color: var(--foam);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:13px;
+    padding:7px 10px;
+    border-radius:2px;
+    width:160px;
+  }
+  .history-filter-bar input::placeholder{ color: rgba(241,236,221,0.35); }
+  .history-filter-clear{
+    background:transparent;
+    border:1px solid rgba(199,154,75,0.4);
+    color: var(--tide);
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11px;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:7px 12px;
+    border-radius:2px;
+    cursor:pointer;
+    display:none;
+  }
+  .history-filter-clear.visible{ display:inline-block; }
+  .history-filter-active-label{
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:11.5px;
+    color: var(--shell);
+  }
   .history-day{
     margin-bottom: 22px;
   }
@@ -889,7 +928,8 @@
   }
   .history-time{ color: var(--shell); flex-shrink:0; width:44px; }
   .history-basin{ color: var(--tide); flex-shrink:0; width:110px; }
-  .history-cage{ color: var(--foam); font-weight:600; flex-shrink:0; width:70px; }
+  .history-cage{ color: var(--foam); font-weight:600; flex-shrink:0; width:70px; cursor:pointer; }
+  .history-cage:hover{ text-decoration:underline; color: var(--tide); }
   .history-action{ color: var(--shell); }
   .history-action.created{ color:#5FBF7A; }
   .history-action.edited{ color:#C79A4B; }
@@ -991,6 +1031,11 @@
   <div class="subtabs">
     <button class="subtab-btn active" id="histSubBtnFroid" type="button">Bassin Froid</button>
     <button class="subtab-btn" id="histSubBtnPlage" type="button">Bassin Plage</button>
+  </div>
+  <div class="history-filter-bar">
+    <input type="text" id="historyCageInput" placeholder="N° de cage…" autocomplete="off">
+    <span class="history-filter-active-label" id="historyFilterLabel"></span>
+    <button class="history-filter-clear" id="historyFilterClear" type="button">Effacer le filtre</button>
   </div>
   <div class="history-wrap" id="historyWrap">
     <div class="summary-empty">Chargement de l'historique…</div>
@@ -1463,6 +1508,14 @@ db.collection('kysHistory').orderBy('ts', 'desc').limit(500).onSnapshot((snap) =
 });
 
 let historyFilter = 'froid'; // 'froid' | 'plage'
+let historyCageFilter = ''; // '' = pas de filtre, sinon numéro/lettre de cage (comparaison insensible à la casse)
+
+function setHistoryCageFilter(value){
+  historyCageFilter = (value || '').trim();
+  const input = document.getElementById('historyCageInput');
+  if(input && input.value !== historyCageFilter) input.value = historyCageFilter;
+  renderHistory();
+}
 
 function renderHistory(){
   const historyBtn = document.getElementById('tabBtnHistory');
@@ -1472,13 +1525,25 @@ function renderHistory(){
   const wrap = document.getElementById('historyWrap');
   if(!wrap) return;
 
+  const clearBtn = document.getElementById('historyFilterClear');
+  const filterLabel = document.getElementById('historyFilterLabel');
+  if(clearBtn) clearBtn.classList.toggle('visible', !!historyCageFilter);
+  if(filterLabel) filterLabel.textContent = historyCageFilter ? `Filtré sur la cage « ${historyCageFilter} »` : '';
+
   const froidBasins = [BASIN_LABELS.b3, BASIN_LABELS.b2, BASIN_LABELS.b1];
-  const filtered = historyEntries.filter((entry) =>
+  let filtered = historyEntries.filter((entry) =>
     historyFilter === 'froid' ? froidBasins.includes(entry.basin) : entry.basin === BASIN_LABELS.rect
   );
 
+  if(historyCageFilter){
+    const needle = historyCageFilter.toLowerCase();
+    filtered = filtered.filter((entry) => (entry.cageId || '').toLowerCase() === needle);
+  }
+
   if(filtered.length === 0){
-    wrap.innerHTML = `<div class="summary-empty">Aucune activité enregistrée pour l'instant</div>`;
+    wrap.innerHTML = historyCageFilter
+      ? `<div class="summary-empty">Aucune activité pour la cage « ${escapeHtml(historyCageFilter)} »</div>`
+      : `<div class="summary-empty">Aucune activité enregistrée pour l'instant</div>`;
     return;
   }
 
@@ -1509,7 +1574,7 @@ function renderHistory(){
       return `<div class="history-entry">
         <span class="history-time">${time}</span>
         <span class="history-basin">${escapeHtml(entry.basin)}</span>
-        <span class="history-cage">${escapeHtml(entry.cageId)}</span>
+        <span class="history-cage" data-cage-id="${escapeHtml(entry.cageId)}" title="Filtrer sur cette cage">${escapeHtml(entry.cageId)}</span>
         <span class="history-action ${entry.action}">${actionLabel}</span>
         ${detailHtml}
       </div>`;
@@ -1881,6 +1946,28 @@ document.getElementById('histSubBtnPlage').addEventListener('click', () => {
   document.getElementById('histSubBtnFroid').classList.remove('active');
   renderHistory();
 });
+
+const historyCageInput = document.getElementById('historyCageInput');
+if(historyCageInput){
+  historyCageInput.addEventListener('input', (e) => {
+    setHistoryCageFilter(e.target.value);
+  });
+}
+const historyFilterClearBtn = document.getElementById('historyFilterClear');
+if(historyFilterClearBtn){
+  historyFilterClearBtn.addEventListener('click', () => {
+    setHistoryCageFilter('');
+  });
+}
+const historyWrapEl = document.getElementById('historyWrap');
+if(historyWrapEl){
+  historyWrapEl.addEventListener('click', (e) => {
+    const cageSpan = e.target.closest('.history-cage');
+    if(cageSpan && cageSpan.dataset.cageId){
+      setHistoryCageFilter(cageSpan.dataset.cageId);
+    }
+  });
+}
 
 document.getElementById('clearRectBtn').addEventListener('click', () => {
   if(stateRect.length === 0) return;
