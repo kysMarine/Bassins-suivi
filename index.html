@@ -153,6 +153,11 @@
     color: var(--tide);
     background: rgba(199,154,75,0.06);
   }
+  .subtab-btn.drop-hover{
+    border-color: var(--coral);
+    color: var(--coral);
+    background: rgba(210,105,74,0.12);
+  }
   .subtab-panel{ display:none; }
   .subtab-panel.active{ display:block; }
 
@@ -852,6 +857,28 @@
   .summary-table td.qty-cell{ text-align:right; font-weight:600; }
   .summary-block.recent .qty-cell{ color:#E8604A; }
   .summary-block.aged .qty-cell{ color:#5FBF7A; }
+  .summary-table tr.total-row td{
+    border-top:1px solid rgba(241,236,221,0.22);
+    background: rgba(241,236,221,0.04);
+    font-weight:700;
+  }
+  .summary-table tr.total-row td.ref-cell{ color: var(--foam); text-transform:uppercase; letter-spacing:.06em; font-size:11.5px; }
+  .summary-grand{
+    margin-top:18px;
+    border:1px solid rgba(199,154,75,0.4);
+    border-radius:3px;
+    background: rgba(199,154,75,0.06);
+    padding:12px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    font-family:ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    font-size:13px;
+  }
+  .summary-grand .grand-label{ color: var(--tide); text-transform:uppercase; letter-spacing:.08em; font-size:11.5px; }
+  .summary-grand .grand-val{ color: var(--foam); font-weight:700; }
   .summary-empty{
     padding:16px 14px;
     font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -976,9 +1003,31 @@
 
 <div class="tab-panel active" id="tabFroid">
   <div class="subtabs">
-    <button class="subtab-btn active" id="subtabBtnB3" type="button">Bassin 3</button>
-    <button class="subtab-btn" id="subtabBtnB2" type="button">Bassin 2</button>
-    <button class="subtab-btn" id="subtabBtnB1" type="button">Bassin 1</button>
+    <button class="subtab-btn" id="subtabBtnB4" data-basin="b4" type="button">Bassin 4</button>
+    <button class="subtab-btn active" id="subtabBtnB3" data-basin="b3" type="button">Bassin 3</button>
+    <button class="subtab-btn" id="subtabBtnB2" data-basin="b2" type="button">Bassin 2</button>
+    <button class="subtab-btn" id="subtabBtnB1" data-basin="b1" type="button">Bassin 1</button>
+    <button class="subtab-btn" id="subtabBtnPRE" data-basin="pre" type="button">Préparation</button>
+  </div>
+
+  <div class="subtab-panel" id="subtabPRE">
+    <div class="basin-wrap">
+      <div class="wave"></div>
+      <div class="basin">
+        <div class="grid" id="gridPRE"></div>
+      </div>
+      <div class="wave bottom"></div>
+    </div>
+  </div>
+
+  <div class="subtab-panel" id="subtabB4">
+    <div class="basin-wrap">
+      <div class="wave"></div>
+      <div class="basin">
+        <div class="grid" id="gridB4"></div>
+      </div>
+      <div class="wave bottom"></div>
+    </div>
   </div>
 
   <div class="subtab-panel active" id="subtabB3">
@@ -1055,6 +1104,7 @@
       <div id="summaryAged"></div>
     </div>
   </div>
+  <div class="summary-grand" id="summaryGrand"></div>
 </div>
 
 <footer id="footerHint">GLISSER LA POIGNÉE (⠿) EN HAUT À DROITE D'UNE CASE POUR PERMUTER · TAPOTER POUR ÉDITER</footer>
@@ -1131,6 +1181,8 @@ const COLLECTION = 'kysBassinsData';
 const N = 16;
 
 const BASIN_CONFIGS = [
+  { id:'pre', legacyKey:'kysBasinCages_pre_v1', legacy:false },
+  { id:'b4', legacyKey:'kysBasinCages_b4_v1', legacy:false },
   { id:'b3', legacyKey:'kysBasinCages_b3_v1', legacy:false },
   { id:'b2', legacyKey:'kysBasinCages_b2_v1', legacy:false },
   { id:'b1', legacyKey:'kysBasinCages_b1_v1', legacy:true } // inherits any pre-existing single-basin data
@@ -1139,8 +1191,13 @@ const LEGACY_STORAGE_KEY = 'kysBasinCages_v1';
 const LEGACY_RECT_KEY = 'kysBasinRect_v1';
 const LEGACY_POIDS_KEY = 'kysDefaultPoidsBac_v1';
 
-function emptyGrid(){
-  return [0,1,2,3].map(() => new Array(4).fill(null));
+// Emplacements pré-bloqués à la création d'un bassin (Bassin 4 : les 2 cases en bas à gauche)
+const DEFAULT_BLOCKED = { b4: [[2,0],[3,0]] };
+
+function emptyGrid(basinId){
+  const g = [0,1,2,3].map(() => new Array(4).fill(null));
+  (DEFAULT_BLOCKED[basinId] || []).forEach(([r, c]) => { g[r][c] = { blocked:true }; });
+  return g;
 }
 
 function migrateLegacyGrid(raw){
@@ -1161,7 +1218,7 @@ function migrateLegacyGrid(raw){
 const basins = {};
 BASIN_CONFIGS.forEach(cfg => {
   basins[cfg.id] = {
-    state: emptyGrid(),
+    state: emptyGrid(cfg.id),
     gridEl: document.getElementById('grid' + cfg.id.toUpperCase())
   };
 });
@@ -1193,7 +1250,7 @@ BASIN_CONFIGS.forEach(cfg => {
           if(old) seed = migrateLegacyGrid(old);
         }catch(e){}
       }
-      basins[cfg.id].state = seed || emptyGrid();
+      basins[cfg.id].state = seed || emptyGrid(cfg.id);
       saveGridState(cfg.id); // seed Firestore so every device converges on the same starting point
     }
     renderGrid(cfg.id);
@@ -1299,9 +1356,9 @@ function cageCardHTML(cage){
   `;
 }
 
-const BLOCKABLE_POSITIONS = [[0,0],[1,0]];
-function isBlockablePos(r, c){
-  return BLOCKABLE_POSITIONS.some(([br, bc]) => br === r && bc === c);
+const BLOCKABLE_POSITIONS = { b3:[[0,0],[1,0]], b2:[[0,0],[1,0]], b1:[[0,0],[1,0]], b4:[[2,0],[3,0]] };
+function isBlockablePos(basinId, r, c){
+  return (BLOCKABLE_POSITIONS[basinId] || []).some(([br, bc]) => br === r && bc === c);
 }
 function isRowEmptyOrSpacer(row){
   return row.every(c => c === null || (c && c.spacer));
@@ -1351,7 +1408,7 @@ function renderGrid(basinId){
         } else {
           cell.className = 'cell empty';
           cell.innerHTML = `<span class="plus">+</span><button type="button" class="cell-remove-btn" title="Supprimer cet emplacement">−</button>`
-            + (isBlockablePos(rIdx, cIdx) ? `<button type="button" class="block-btn" title="Marquer indisponible">🚫</button>` : '');
+            + (isBlockablePos(basinId, rIdx, cIdx) ? `<button type="button" class="block-btn" title="Marquer indisponible">🚫</button>` : '');
         }
       }
       rowEl.appendChild(cell);
@@ -1442,7 +1499,7 @@ function fmtQty(n, unit){
   return unit === 'kg' ? `${val} Kg` : `${val} p`;
 }
 
-const BASIN_LABELS = { b3:'Bassin 3', b2:'Bassin 2', b1:'Bassin 1', rect:'Bassin Plage' };
+const BASIN_LABELS = { pre:'Préparation', b4:'Bassin 4', b3:'Bassin 3', b2:'Bassin 2', b1:'Bassin 1', rect:'Bassin Plage' };
 
 /* ---------------- Historique (journal des ajouts/modifs/suppressions/déplacements) ---------------- */
 const ACTION_LABELS = {
@@ -1530,7 +1587,7 @@ function renderHistory(){
   if(clearBtn) clearBtn.classList.toggle('visible', !!historyCageFilter);
   if(filterLabel) filterLabel.textContent = historyCageFilter ? `Filtré sur la cage « ${historyCageFilter} »` : '';
 
-  const froidBasins = [BASIN_LABELS.b3, BASIN_LABELS.b2, BASIN_LABELS.b1];
+  const froidBasins = [BASIN_LABELS.pre, BASIN_LABELS.b4, BASIN_LABELS.b3, BASIN_LABELS.b2, BASIN_LABELS.b1];
   let filtered = historyEntries.filter((entry) =>
     historyFilter === 'froid' ? froidBasins.includes(entry.basin) : entry.basin === BASIN_LABELS.rect
   );
@@ -1586,6 +1643,16 @@ function renderHistory(){
   }).join('');
 }
 
+// Somme par unité (Kg / pièces) d'un récap { "nom||unité": quantité }
+function fmtTotals(data){
+  const sums = { kg:0, p:0 };
+  Object.keys(data).forEach(k => { const unit = k.split('||')[1] === 'kg' ? 'kg' : 'p'; sums[unit] += data[k]; });
+  const parts = [];
+  if(sums.kg) parts.push(fmtQty(sums.kg, 'kg'));
+  if(sums.p) parts.push(fmtQty(sums.p, 'p'));
+  return parts.join(' · ') || '—';
+}
+
 function renderSummary(){
   const recent = {}; // key "name||unit" -> total
   const aged = {};
@@ -1625,8 +1692,16 @@ function renderSummary(){
         const [name, unit] = k.split('||');
         return `<tr><td class="ref-cell">${escapeHtml(name)}</td><td class="qty-cell">${fmtQty(data[k], unit)}</td></tr>`;
       }).join('')}
+      <tr class="total-row"><td class="ref-cell">Total</td><td class="qty-cell">${fmtTotals(data)}</td></tr>
     </tbody></table>`;
   };
+
+  const grandEl = document.getElementById('summaryGrand');
+  if(grandEl){
+    const both = {};
+    [recent, aged].forEach(d => Object.keys(d).forEach(k => { both[k] = (both[k] || 0) + d[k]; }));
+    grandEl.innerHTML = `<span class="grand-label">Total général (-48h + +48h)</span><span class="grand-val">${Object.keys(both).length ? fmtTotals(both) : '—'}</span>`;
+  }
 
   fillBlock('summaryRecent', recent);
   fillBlock('summaryAged', aged);
@@ -1746,10 +1821,30 @@ function onPointerMove(e){
     const under = document.elementFromPoint(e.clientX, e.clientY);
     const targetCell = under ? under.closest('.cell') : null;
     document.querySelectorAll('.cell.drop-target').forEach(c => c.classList.remove('drop-target'));
-    if(targetCell && targetCell !== dragState.el && !targetCell.classList.contains('spacer')){
+    if(targetCell && targetCell !== dragState.el && !targetCell.classList.contains('spacer') && !targetCell.classList.contains('blocked')){
       targetCell.classList.add('drop-target');
     }
+
+    // Survol d'un onglet de bassin pendant le glissement : on y bascule après un court délai
+    const tabBtn = under ? under.closest('.subtab-btn[data-basin]') : null;
+    const hoverId = tabBtn && tabBtn.dataset.basin !== activeTab ? tabBtn.dataset.basin : null;
+    if(hoverId !== tabHoverId){
+      clearTabHover();
+      if(hoverId){
+        tabHoverId = hoverId;
+        tabBtn.classList.add('drop-hover');
+        tabHoverTimer = setTimeout(() => { switchSubTab(hoverId); clearTabHover(); }, 450);
+      }
+    }
   }
+}
+
+let tabHoverId = null, tabHoverTimer = null;
+function clearTabHover(){
+  clearTimeout(tabHoverTimer);
+  tabHoverTimer = null;
+  tabHoverId = null;
+  document.querySelectorAll('.subtab-btn.drop-hover').forEach(b => b.classList.remove('drop-hover'));
 }
 
 function onPointerUp(e){
@@ -1771,21 +1866,33 @@ function onPointerUp(e){
     ghost.style.display = 'none';
     document.querySelectorAll('.cell').forEach(c => c.style.cursor='');
 
-    if(targetCell && !targetCell.classList.contains('spacer') && targetCell.closest('.grid') === fromEl.closest('.grid')){
+    clearTabHover();
+    const targetGrid = targetCell ? targetCell.closest('.grid') : null;
+    const toCfg = targetGrid ? BASIN_CONFIGS.find(cfg => basins[cfg.id].gridEl === targetGrid) : null;
+    if(targetCell && toCfg && !targetCell.classList.contains('spacer') && !targetCell.classList.contains('blocked')){
+      const toBasinId = toCfg.id;
+      const toState = basins[toBasinId].state;
       const toRow = parseInt(targetCell.dataset.row, 10), toCol = parseInt(targetCell.dataset.col, 10);
-      if(toRow !== fromRow || toCol !== fromCol){
-        const tmp = state[fromRow][fromCol];
+      if(toBasinId !== basinId || toRow !== fromRow || toCol !== fromCol){
         const movedFrom = state[fromRow][fromCol];
-        const movedTo = state[toRow][toCol];
-        state[fromRow][fromCol] = state[toRow][toCol];
-        state[toRow][toCol] = tmp;
+        const movedTo = toState[toRow][toCol];
+        state[fromRow][fromCol] = movedTo;
+        toState[toRow][toCol] = movedFrom;
         saveGridState(basinId);
+        if(toBasinId !== basinId) saveGridState(toBasinId);
         renderGrid(basinId);
-        if(movedFrom && !movedFrom.blocked) logHistory(BASIN_LABELS[basinId], movedFrom.id, 'moved', cageDetailParts(movedFrom, null));
-        if(movedTo && !movedTo.blocked) logHistory(BASIN_LABELS[basinId], movedTo.id, 'moved', cageDetailParts(movedTo, null));
+        if(toBasinId !== basinId) renderGrid(toBasinId);
+        const crossNote = (from, to) => ({ text: `${BASIN_LABELS[from]} → ${BASIN_LABELS[to]}`, changed:true });
+        if(toBasinId === basinId){
+          if(movedFrom && !movedFrom.blocked) logHistory(BASIN_LABELS[basinId], movedFrom.id, 'moved', cageDetailParts(movedFrom, null));
+          if(movedTo && !movedTo.blocked) logHistory(BASIN_LABELS[basinId], movedTo.id, 'moved', cageDetailParts(movedTo, null));
+        } else {
+          if(movedFrom && !movedFrom.blocked) logHistory(BASIN_LABELS[toBasinId], movedFrom.id, 'moved', [crossNote(basinId, toBasinId), ...cageDetailParts(movedFrom, null)]);
+          if(movedTo && !movedTo.blocked) logHistory(BASIN_LABELS[basinId], movedTo.id, 'moved', [crossNote(toBasinId, basinId), ...cageDetailParts(movedTo, null)]);
+        }
         requestAnimationFrame(() => {
           const a = basins[basinId].gridEl.querySelector(`.cell[data-row="${fromRow}"][data-col="${fromCol}"]`);
-          const b = basins[basinId].gridEl.querySelector(`.cell[data-row="${toRow}"][data-col="${toCol}"]`);
+          const b = basins[toBasinId].gridEl.querySelector(`.cell[data-row="${toRow}"][data-col="${toCol}"]`);
           a && a.classList.add('just-dropped');
           b && b.classList.add('just-dropped');
         });
@@ -1883,18 +1990,17 @@ function onRectPointerUp(e){
 /* ---------------- Tabs ---------------- */
 let activeTab = 'b3';
 let lastGridSubTab = 'b3';
-const GRID_TAB_IDS = ['b3', 'b2', 'b1'];
+const GRID_TAB_IDS = ['b4', 'b3', 'b2', 'b1', 'pre'];
 
 function switchSubTab(basinId){
   activeTab = basinId;
   lastGridSubTab = basinId;
-  document.getElementById('subtabBtnB3').classList.toggle('active', basinId==='b3');
-  document.getElementById('subtabBtnB2').classList.toggle('active', basinId==='b2');
-  document.getElementById('subtabBtnB1').classList.toggle('active', basinId==='b1');
-  document.getElementById('subtabB3').classList.toggle('active', basinId==='b3');
-  document.getElementById('subtabB2').classList.toggle('active', basinId==='b2');
-  document.getElementById('subtabB1').classList.toggle('active', basinId==='b1');
-  document.getElementById('footerHint').textContent = "GLISSER LA POIGNÉE (⠿) EN HAUT À DROITE D'UNE CASE POUR PERMUTER · TAPOTER POUR ÉDITER";
+  GRID_TAB_IDS.forEach(id => {
+    const suffix = id.toUpperCase();
+    document.getElementById('subtabBtn' + suffix).classList.toggle('active', basinId === id);
+    document.getElementById('subtab' + suffix).classList.toggle('active', basinId === id);
+  });
+  document.getElementById('footerHint').textContent = "GLISSER LA POIGNÉE (⠿) POUR PERMUTER · POUR CHANGER DE BASSIN, MAINTENIR LA CAGE SUR L'ONGLET · TAPOTER POUR ÉDITER";
   const flat = basins[basinId].state.flat().filter(c => !(c && c.spacer));
   document.getElementById('statNum').innerHTML = `${flat.filter(c => c && !c.blocked).length}<span>/${flat.length}</span>`;
   document.querySelector('.stat .label').textContent = 'emplacements occupés';
@@ -1930,9 +2036,9 @@ function switchTab(tab){
 document.getElementById('tabBtnFroid').addEventListener('click', () => switchTab('froid'));
 document.getElementById('tabBtnRect').addEventListener('click', () => switchTab('rect'));
 document.getElementById('tabBtnHistory').addEventListener('click', () => switchTab('historique'));
-document.getElementById('subtabBtnB3').addEventListener('click', () => switchSubTab('b3'));
-document.getElementById('subtabBtnB2').addEventListener('click', () => switchSubTab('b2'));
-document.getElementById('subtabBtnB1').addEventListener('click', () => switchSubTab('b1'));
+GRID_TAB_IDS.forEach(id => {
+  document.getElementById('subtabBtn' + id.toUpperCase()).addEventListener('click', () => switchSubTab(id));
+});
 
 document.getElementById('histSubBtnFroid').addEventListener('click', () => {
   historyFilter = 'froid';
